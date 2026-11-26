@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { FileCheck2, Send, Settings2, Sparkles, X } from "lucide-react";
+import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { FilingChunk } from "@/lib/types";
 
 interface AiAnalystDrawerProps {
@@ -19,18 +20,13 @@ interface ChatMessage {
   providerUsed?: string;
 }
 
-const PROMPT_CHIPS = [
-  "Scan latest earnings call for red flags",
-  "Compare Q3 vs Q4 management tone",
-  "Summarize guidance & capex changes",
-];
-
 export function AiAnalystDrawer({
   open,
   onClose,
   symbol,
   valuationSummary,
 }: AiAnalystDrawerProps) {
+  const { lang, t } = useLanguage();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -44,6 +40,51 @@ export function AiAnalystDrawer({
   const [apiKey, setApiKey] = useState("");
   const [baseUrl, setBaseUrl] = useState("http://localhost:11434/v1");
   const [model, setModel] = useState("");
+
+  useEffect(() => {
+    fetch("/api/preferences")
+      .then((r) => r.json())
+      .then((json: { preferences?: Record<string, string> }) => {
+        const raw = json.preferences?.ai_config;
+        if (!raw) return;
+        try {
+          const parsed = JSON.parse(raw) as {
+            provider?: "local" | "ollama" | "openai" | "anthropic";
+            apiKey?: string;
+            baseUrl?: string;
+            model?: string;
+          };
+          if (parsed.provider) setProvider(parsed.provider);
+          if (parsed.apiKey) setApiKey(parsed.apiKey);
+          if (parsed.baseUrl) setBaseUrl(parsed.baseUrl);
+          if (parsed.model) setModel(parsed.model);
+        } catch {
+          // ignore
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const persistAiConfig = (
+    next: Partial<{
+      provider: "local" | "ollama" | "openai" | "anthropic";
+      apiKey: string;
+      baseUrl: string;
+      model: string;
+    }>
+  ) => {
+    const payload = {
+      provider: next.provider ?? provider,
+      apiKey: next.apiKey ?? apiKey,
+      baseUrl: next.baseUrl ?? baseUrl,
+      model: next.model ?? model,
+    };
+    fetch("/api/preferences", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: "ai_config", value: payload }),
+    }).catch(() => {});
+  };
 
   useEffect(() => {
     setMessages([]);
@@ -76,6 +117,7 @@ export function AiAnalystDrawer({
         body: JSON.stringify({
           symbol,
           question: q,
+          lang,
           provider,
           apiKey: apiKey || undefined,
           baseUrl: baseUrl || undefined,
@@ -93,7 +135,12 @@ export function AiAnalystDrawer({
       const assistantMsg: ChatMessage = {
         id: `a-${Date.now()}`,
         role: "assistant",
-        content: json.answer || json.error || "Not disclosed in indexed filings.",
+        content:
+          json.answer ||
+          json.error ||
+          (lang === "it"
+            ? "Non indicato nei documenti indicizzati."
+            : "Not disclosed in indexed filings."),
         citations,
         providerUsed: json.providerUsed,
       };
@@ -164,10 +211,10 @@ export function AiAnalystDrawer({
           <Sparkles className="h-4 w-4 text-slate-300" />
           <div>
             <div className="text-sm font-semibold text-white">
-              Ask AI · <span className="font-mono">{symbol}</span>
+              {t.ai.title} · <span className="font-mono">{symbol}</span>
             </div>
             <div className="text-xs text-slate-400">
-              {indexedChunks.length} indexed passages
+              {indexedChunks.length} {t.ai.passages}
             </div>
           </div>
         </div>
@@ -193,21 +240,25 @@ export function AiAnalystDrawer({
 
       {settingsOpen && (
         <div className="space-y-2.5 border-b border-white/[0.06] bg-[#11151E] px-6 py-4 text-xs">
-          <div className="font-medium text-slate-300">Inference Backend</div>
+          <div className="font-medium text-slate-300">{t.ai.backend}</div>
           <select
             aria-label="AI Provider"
             value={provider}
-            onChange={(e) =>
-              setProvider(
-                e.target.value as "local" | "ollama" | "openai" | "anthropic"
-              )
-            }
+            onChange={(e) => {
+              const p = e.target.value as
+                | "local"
+                | "ollama"
+                | "openai"
+                | "anthropic";
+              setProvider(p);
+              persistAiConfig({ provider: p });
+            }}
             className="w-full rounded-lg border border-white/[0.08] bg-[#0B0E14] px-3 py-2 text-white outline-none"
           >
-            <option value="local">Local Citation-Locked RAG (Zero-Key)</option>
-            <option value="ollama">Local Ollama (http://localhost:11434/v1)</option>
-            <option value="openai">OpenAI-Compatible BYOK</option>
-            <option value="anthropic">Anthropic Claude BYOK</option>
+            <option value="local">{t.ai.localRag}</option>
+            <option value="ollama">{t.ai.ollama}</option>
+            <option value="openai">{t.ai.openai}</option>
+            <option value="anthropic">{t.ai.anthropic}</option>
           </select>
 
           {provider !== "local" && (
@@ -216,7 +267,10 @@ export function AiAnalystDrawer({
                 <input
                   type="text"
                   value={baseUrl}
-                  onChange={(e) => setBaseUrl(e.target.value)}
+                  onChange={(e) => {
+                    setBaseUrl(e.target.value);
+                    persistAiConfig({ baseUrl: e.target.value });
+                  }}
                   placeholder={
                     provider === "ollama"
                       ? "http://localhost:11434/v1"
@@ -229,15 +283,21 @@ export function AiAnalystDrawer({
                 <input
                   type="password"
                   value={apiKey}
-                  onChange={(e) => setApiKey(e.target.value)}
-                  placeholder="API Key (stored in memory only)"
+                  onChange={(e) => {
+                    setApiKey(e.target.value);
+                    persistAiConfig({ apiKey: e.target.value });
+                  }}
+                  placeholder={t.ai.apiKeyPlaceholder}
                   className="w-full rounded-lg border border-white/[0.08] bg-[#0B0E14] px-3 py-2 font-mono text-[11px] text-white outline-none"
                 />
               )}
               <input
                 type="text"
                 value={model}
-                onChange={(e) => setModel(e.target.value)}
+                onChange={(e) => {
+                  setModel(e.target.value);
+                  persistAiConfig({ model: e.target.value });
+                }}
                 placeholder={
                   provider === "ollama"
                     ? "llama3.1"
@@ -253,9 +313,11 @@ export function AiAnalystDrawer({
       )}
 
       <div className="border-b border-white/[0.06] px-6 py-4">
-        <div className="mb-2.5 text-xs text-slate-400">Suggested Prompts</div>
+        <div className="mb-2.5 text-xs text-slate-400">
+          {t.ai.suggestedPrompts}
+        </div>
         <div className="flex flex-wrap gap-2">
-          {PROMPT_CHIPS.map((chip) => (
+          {t.ai.chips.map((chip) => (
             <button
               key={chip}
               type="button"
@@ -271,12 +333,7 @@ export function AiAnalystDrawer({
       <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
         {messages.length === 0 ? (
           <div className="rounded-xl bg-[#11151E] p-4 text-xs leading-relaxed text-slate-400">
-            Ask any question grounded in{" "}
-            <span className="font-mono text-white">{symbol}</span>&apos;s indexed
-            transcripts and 10-K filings. Unindexed figures strictly return{" "}
-            <span className="font-mono text-slate-200">
-              &quot;Not disclosed in indexed filings.&quot;
-            </span>
+            {t.ai.emptyHint}
           </div>
         ) : (
           messages.map((m) => (
@@ -304,7 +361,7 @@ export function AiAnalystDrawer({
 
         {loading && (
           <div className="rounded-xl bg-[#11151E] p-4 text-xs text-slate-400">
-            Verifying against indexed filings...
+            {t.ai.verifying}
           </div>
         )}
 
@@ -323,7 +380,7 @@ export function AiAnalystDrawer({
                 onClick={() => setActiveChunk(null)}
                 className="text-xs text-slate-400 hover:text-white"
               >
-                Hide
+                {t.ai.hideSnippet}
               </button>
             </div>
             <div className="mt-1 font-mono text-[11px] text-slate-500">
@@ -348,7 +405,7 @@ export function AiAnalystDrawer({
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={`Ask about ${symbol} filings...`}
+            placeholder={t.ai.inputPlaceholder}
             className="flex-1 bg-transparent text-xs text-white outline-none placeholder:text-slate-500"
           />
           <button

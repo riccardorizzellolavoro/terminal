@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { LanguageProvider } from "@/components/i18n/LanguageProvider";
 import "./globals.css";
 
 const inter = Inter({
@@ -15,9 +16,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "OpenForecaster — Local-First Institutional Financial Terminal",
+  title: "OpenTerminal — Local-First Portable Financial Terminal",
   description:
-    "Unified real-time market data, deterministic valuation models, 30-year seasonality, smart-money tracking, and citation-locked AI analyst.",
+    "100% local-first portable research terminal for global stocks, ETFs, indices, forex, crypto, commodities, sovereign bonds, and options.",
 };
 
 export default function RootLayout({
@@ -31,7 +32,7 @@ export default function RootLayout({
       className={`${inter.variable} ${jetbrainsMono.variable} dark h-full antialiased`}
     >
       <body className="min-h-full bg-[#0B0E14] text-slate-100 font-sans selection:bg-[#3B82F6]/30 selection:text-white">
-        {children}
+        <LanguageProvider>{children}</LanguageProvider>
       </body>
     </html>
   );

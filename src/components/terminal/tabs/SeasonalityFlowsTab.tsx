@@ -2,7 +2,9 @@
 
 import React, { useMemo, useState } from "react";
 import type * as echarts from "echarts";
+import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { EChartsBox } from "@/components/terminal/EChartsBox";
+import { TermHelp } from "@/components/ui/TermHelp";
 import { formatCompactCurrency, formatSignedPct } from "@/lib/format";
 import {
   SeasonalityCurves,
@@ -14,6 +16,7 @@ interface SeasonalityFlowsTabProps {
   symbol: string;
   seasonality: SeasonalityCurves;
   smartMoney: SmartMoneyResponse;
+  cotOnly?: boolean;
 }
 
 const PRESET_WINDOWS = [
@@ -28,6 +31,7 @@ type FlowFilter = "all" | "insider" | "congress" | "cot";
 interface UnifiedFlowRow {
   id: string;
   source: "Form 4" | "Congress" | "CFTC COT";
+  helpKey: string;
   actor: string;
   action: string;
   tone: "positive" | "negative" | "neutral";
@@ -39,7 +43,9 @@ export function SeasonalityFlowsTab({
   symbol,
   seasonality,
   smartMoney,
+  cotOnly = false,
 }: SeasonalityFlowsTabProps) {
+  const { t } = useLanguage();
   const [startMMDD, setStartMMDD] = useState(
     seasonality.defaultWindow.startMonthDay
   );
@@ -50,9 +56,11 @@ export function SeasonalityFlowsTab({
   );
   const [loadingWindow, setLoadingWindow] = useState(false);
 
-  const [flowFilter, setFlowFilter] = useState<FlowFilter>("all");
+  const [flowFilter, setFlowFilter] = useState<FlowFilter>(
+    cotOnly ? "cot" : "all"
+  );
   const [showAllFlows, setShowAllFlows] = useState(false);
-  const [showCotChart, setShowCotChart] = useState(false);
+  const [showCotChart, setShowCotChart] = useState(cotOnly);
 
   const applyWindow = async (
     newStart: string,
@@ -202,7 +210,7 @@ export function SeasonalityFlowsTab({
       },
       series: [
         {
-          name: "Large Speculators",
+          name: t.seasonality.largeSpeculators,
           type: "line",
           smooth: true,
           showSymbol: false,
@@ -210,39 +218,49 @@ export function SeasonalityFlowsTab({
           data: smartMoney.cotSeries.map((c) => c.largeSpecNet),
         },
         {
-          name: "Commercial Hedgers",
+          name: t.seasonality.commercialHedgers,
           type: "line",
           smooth: true,
           showSymbol: false,
           lineStyle: { width: 1.8, color: "#94A3B8" },
           data: smartMoney.cotSeries.map((c) => c.commercialNet),
         },
+        {
+          name: t.seasonality.smallTraders,
+          type: "line",
+          smooth: true,
+          showSymbol: false,
+          lineStyle: { width: 1.2, type: "dashed", color: "#64748B" },
+          data: smartMoney.cotSeries.map((c) => c.smallTraderNet),
+        },
       ],
     };
-  }, [smartMoney]);
+  }, [smartMoney, t]);
 
   const unifiedFlows = useMemo<UnifiedFlowRow[]>(() => {
     const rows: UnifiedFlowRow[] = [];
 
-    if (flowFilter === "all" || flowFilter === "insider") {
-      for (const t of smartMoney.insiderTrades) {
+    if (!cotOnly && (flowFilter === "all" || flowFilter === "insider")) {
+      for (const tr of smartMoney.insiderTrades) {
         rows.push({
-          id: t.id,
+          id: tr.id,
           source: "Form 4",
-          actor: `${t.insiderName} · ${t.role}`,
-          action: t.transactionType,
-          tone: t.transactionType === "Buy" ? "positive" : "negative",
-          size: formatCompactCurrency(t.valueUsd),
-          dateImpact: `${t.date} (${formatSignedPct(t.postTradeReturnPct)})`,
+          helpKey: "secForm4",
+          actor: `${tr.insiderName} · ${tr.role}`,
+          action: tr.transactionType,
+          tone: tr.transactionType === "Buy" ? "positive" : "negative",
+          size: formatCompactCurrency(tr.valueUsd),
+          dateImpact: `${tr.date} (${formatSignedPct(tr.postTradeReturnPct)})`,
         });
       }
     }
 
-    if (flowFilter === "all" || flowFilter === "congress") {
+    if (!cotOnly && (flowFilter === "all" || flowFilter === "congress")) {
       for (const c of smartMoney.congressTrades) {
         rows.push({
           id: c.id,
           source: "Congress",
+          helpKey: "insiderCluster",
           actor: `${c.politician} (${c.party})`,
           action: c.transactionType,
           tone: c.transactionType === "Purchase" ? "positive" : "negative",
@@ -258,9 +276,9 @@ export function SeasonalityFlowsTab({
         rows.push({
           id: "cot-spec",
           source: "CFTC COT",
-          actor: `${smartMoney.cotAssetName} · Large Speculators`,
-          action:
-            latest.largeSpecNet >= 0 ? "Net Long" : "Net Short",
+          helpKey: "largeSpeculators",
+          actor: `${smartMoney.cotAssetName} · ${t.seasonality.largeSpeculators}`,
+          action: latest.largeSpecNet >= 0 ? "Net Long" : "Net Short",
           tone: latest.largeSpecNet >= 0 ? "positive" : "negative",
           size: `${latest.largeSpecNet.toLocaleString()} cts`,
           dateImpact: `${latest.date} (${latest.largeSpecPercentile}th pct)`,
@@ -268,18 +286,28 @@ export function SeasonalityFlowsTab({
         rows.push({
           id: "cot-comm",
           source: "CFTC COT",
-          actor: `${smartMoney.cotAssetName} · Commercial Hedgers`,
-          action:
-            latest.commercialNet >= 0 ? "Net Long" : "Net Short",
+          helpKey: "commercialHedgers",
+          actor: `${smartMoney.cotAssetName} · ${t.seasonality.commercialHedgers}`,
+          action: latest.commercialNet >= 0 ? "Net Long" : "Net Short",
           tone: "neutral",
           size: `${latest.commercialNet.toLocaleString()} cts`,
           dateImpact: `${latest.date} (${latest.commercialPercentile}th pct)`,
+        });
+        rows.push({
+          id: "cot-small",
+          source: "CFTC COT",
+          helpKey: "smallTraders",
+          actor: `${smartMoney.cotAssetName} · ${t.seasonality.smallTraders}`,
+          action: latest.smallTraderNet >= 0 ? "Net Long" : "Net Short",
+          tone: "neutral",
+          size: `${latest.smallTraderNet.toLocaleString()} cts`,
+          dateImpact: `${latest.date}`,
         });
       }
     }
 
     return rows;
-  }, [smartMoney, flowFilter]);
+  }, [smartMoney, flowFilter, cotOnly, t]);
 
   const visibleFlows = showAllFlows ? unifiedFlows : unifiedFlows.slice(0, 7);
 
@@ -287,6 +315,11 @@ export function SeasonalityFlowsTab({
     <div className="space-y-8">
       {/* 1. Interactive 10/20/30-Year Detrended Seasonality Chart */}
       <div className="rounded-xl border border-white/[0.06] bg-[#11151E] p-6">
+        <div className="mb-3 flex items-center text-sm font-medium text-white">
+          <span>{t.tabs.seasonality}</span>
+          <TermHelp termKey="detrendedSeasonality" />
+        </div>
+
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-1.5">
             {PRESET_WINDOWS.map((p) => {
@@ -330,23 +363,27 @@ export function SeasonalityFlowsTab({
               disabled={loadingWindow}
               className="rounded-md bg-[#3B82F6] px-3 py-1 font-medium text-white transition hover:bg-[#2563EB] disabled:opacity-60"
             >
-              {loadingWindow ? "..." : "Analyze"}
+              {loadingWindow ? "..." : t.seasonality.analyze}
             </button>
           </div>
         </div>
 
         <EChartsBox option={chartOption} height={320} />
 
-        {/* Hairline 4-Stat Summary Row inside the card (Zero nested borders) */}
         <div className="mt-6 grid divide-y divide-white/[0.06] border-t border-white/[0.06] pt-5 sm:grid-cols-4 sm:divide-x sm:divide-y-0">
           <div className="pb-3 sm:pb-0 sm:pr-4">
-            <div className="text-xs text-slate-400">Win Rate</div>
+            <div className="flex items-center text-xs text-slate-400">
+              <span>{t.seasonality.winRate}</span>
+              <TermHelp termKey="winRate" />
+            </div>
             <div className="mt-1 font-mono text-xl font-semibold tabular-nums text-[#10B981]">
               {windowStats.winRate.toFixed(1)}%
             </div>
           </div>
           <div className="py-3 sm:px-4 sm:py-0">
-            <div className="text-xs text-slate-400">Average Return</div>
+            <div className="text-xs text-slate-400">
+              {t.seasonality.avgReturn}
+            </div>
             <div
               className={`mt-1 font-mono text-xl font-semibold tabular-nums ${
                 windowStats.avgReturn >= 0 ? "text-[#10B981]" : "text-[#F43F5E]"
@@ -356,63 +393,76 @@ export function SeasonalityFlowsTab({
             </div>
           </div>
           <div className="py-3 sm:px-4 sm:py-0">
-            <div className="text-xs text-slate-400">Avg Max Drawdown</div>
+            <div className="flex items-center text-xs text-slate-400">
+              <span>{t.seasonality.maxDrawdown}</span>
+              <TermHelp termKey="maxDrawdown" />
+            </div>
             <div className="mt-1 font-mono text-xl font-semibold tabular-nums text-[#F43F5E]">
               {windowStats.maxDrawdown.toFixed(2)}%
             </div>
           </div>
           <div className="pt-3 sm:pl-4 sm:pt-0">
-            <div className="text-xs text-slate-400">Years Analyzed</div>
+            <div className="text-xs text-slate-400">
+              {t.seasonality.yearsAnalyzed}
+            </div>
             <div className="mt-1 font-mono text-xl font-semibold tabular-nums text-white">
-              {windowStats.yearsAnalyzed} yrs
+              {windowStats.yearsAnalyzed} {t.seasonality.yrs}
             </div>
           </div>
         </div>
       </div>
 
-      {/* 2. Single Unified Filterable Smart Money Activity Table */}
+      {/* 2. Unified Smart Money / COT Table */}
       <div className="rounded-xl border border-white/[0.06] bg-[#11151E] p-6">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h3 className="text-sm font-medium text-white">
-              Smart Money Activity · {smartMoney.signalLabel}
+            <h3 className="flex items-center text-sm font-medium text-white">
+              <span>
+                {t.seasonality.smartMoneyActivity} · {smartMoney.signalLabel}
+              </span>
+              <TermHelp termKey="cftcCot" />
+              <TermHelp termKey="insiderCluster" />
             </h3>
             {smartMoney.cotExtremeAlert && (
-              <p className="mt-0.5 text-xs text-slate-400">
-                {smartMoney.cotExtremeAlert}
+              <p className="mt-0.5 flex items-center text-xs text-slate-400">
+                <span>{smartMoney.cotExtremeAlert}</span>
+                <TermHelp termKey="extremePercentile" />
               </p>
             )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2 text-xs">
-            {(
-              [
-                { id: "all", label: "All" },
-                { id: "insider", label: "Insiders" },
-                { id: "congress", label: "Congress" },
-                { id: "cot", label: "CFTC COT" },
-              ] as const
-            ).map((f) => (
-              <button
-                key={f.id}
-                type="button"
-                onClick={() => setFlowFilter(f.id)}
-                className={`rounded-md px-3 py-1 transition ${
-                  flowFilter === f.id
-                    ? "bg-white/[0.12] text-white"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
+            {!cotOnly &&
+              (
+                [
+                  { id: "all", label: t.seasonality.all },
+                  { id: "insider", label: t.seasonality.insiders },
+                  { id: "congress", label: t.seasonality.congress },
+                  { id: "cot", label: t.seasonality.cot },
+                ] as const
+              ).map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setFlowFilter(f.id)}
+                  className={`rounded-md px-3 py-1 transition ${
+                    flowFilter === f.id
+                      ? "bg-white/[0.12] text-white"
+                      : "text-slate-400 hover:text-white"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
 
             <button
               type="button"
               onClick={() => setShowCotChart((v) => !v)}
               className="ml-2 rounded-md border border-white/[0.08] px-3 py-1 text-slate-300 hover:text-white"
             >
-              {showCotChart ? "Hide COT Curve" : "COT Curve"}
+              {showCotChart
+                ? t.seasonality.hideCotCurve
+                : t.seasonality.cotCurve}
             </button>
           </div>
         </div>
@@ -427,14 +477,20 @@ export function SeasonalityFlowsTab({
           <table className="w-full border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-white/[0.06] text-xs text-slate-400">
-                <th className="py-3 pr-4 font-medium">Source</th>
-                <th className="px-4 py-3 font-medium">Actor</th>
-                <th className="px-4 py-3 font-medium">Action</th>
+                <th className="py-3 pr-4 font-medium">
+                  {t.seasonality.colSource}
+                </th>
+                <th className="px-4 py-3 font-medium">
+                  {t.seasonality.colActor}
+                </th>
+                <th className="px-4 py-3 font-medium">
+                  {t.seasonality.colAction}
+                </th>
                 <th className="px-4 py-3 text-right font-mono font-medium">
-                  Size
+                  {t.seasonality.colSize}
                 </th>
                 <th className="py-3 pl-4 text-right font-mono font-medium">
-                  Date / Impact
+                  {t.seasonality.colDateImpact}
                 </th>
               </tr>
             </thead>
@@ -445,7 +501,7 @@ export function SeasonalityFlowsTab({
                     colSpan={5}
                     className="py-8 text-center text-sm text-slate-500"
                   >
-                    No Smart Money records for the selected filter.
+                    {t.seasonality.noFlows}
                   </td>
                 </tr>
               ) : (
@@ -453,6 +509,7 @@ export function SeasonalityFlowsTab({
                   <tr key={row.id} className="h-12 hover:bg-white/[0.02]">
                     <td className="py-3 pr-4 font-mono text-xs text-slate-400">
                       {row.source}
+                      <TermHelp termKey={row.helpKey} />
                     </td>
                     <td className="max-w-xs truncate px-4 py-3 text-slate-200">
                       {row.actor}
@@ -488,8 +545,8 @@ export function SeasonalityFlowsTab({
             className="mt-4 text-xs text-slate-400 hover:text-white"
           >
             {showAllFlows
-              ? "Show fewer"
-              : `Show more (${unifiedFlows.length - 7} more)`}
+              ? t.screener.showFewer
+              : `${t.screener.showMore} (${unifiedFlows.length - 7})`}
           </button>
         )}
       </div>

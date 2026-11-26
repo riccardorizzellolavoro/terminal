@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getQuoteSnapshot } from "@/lib/adapters/yahoo";
 import { getDb } from "@/lib/db";
-import { getTickerProfile } from "@/lib/seed/universe";
+import { getTickerProfile, normalizeSymbol } from "@/lib/seed/universe";
 
 export async function GET() {
   const db = getDb();
@@ -11,10 +11,11 @@ export async function GET() {
 
   const enriched = await Promise.all(
     rows.map(async (r) => {
-      const q = await getQuoteSnapshot(r.symbol);
-      const profile = getTickerProfile(r.symbol);
+      const sym = normalizeSymbol(r.symbol);
+      const q = await getQuoteSnapshot(sym);
+      const profile = getTickerProfile(sym);
       return {
-        symbol: r.symbol,
+        symbol: sym,
         name: profile.name,
         price: q.price,
         changePercent: q.changePercent,
@@ -28,10 +29,11 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   const body = (await request.json()) as { symbol?: string };
-  const sym = body.symbol?.trim().toUpperCase();
-  if (!sym) {
+  const raw = body.symbol?.trim();
+  if (!raw) {
     return NextResponse.json({ error: "Symbol required" }, { status: 400 });
   }
+  const sym = normalizeSymbol(raw);
   const db = getDb();
   db.prepare(
     "INSERT OR IGNORE INTO watchlist (symbol, added_at) VALUES (?, ?)"
@@ -41,11 +43,15 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  const sym = request.nextUrl.searchParams.get("symbol")?.trim().toUpperCase();
-  if (!sym) {
+  const raw = request.nextUrl.searchParams.get("symbol")?.trim();
+  if (!raw) {
     return NextResponse.json({ error: "Symbol required" }, { status: 400 });
   }
+  const sym = normalizeSymbol(raw);
   const db = getDb();
-  db.prepare("DELETE FROM watchlist WHERE symbol = ?").run(sym);
+  db.prepare("DELETE FROM watchlist WHERE symbol = ? OR symbol = ?").run(
+    sym,
+    raw.toUpperCase()
+  );
   return NextResponse.json({ ok: true, symbol: sym });
 }

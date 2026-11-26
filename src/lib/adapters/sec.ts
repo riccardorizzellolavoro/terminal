@@ -6,7 +6,7 @@ import { FinancialPeriodRow, SecFilingItem } from "@/lib/types";
 import { secRateLimiter } from "./rate-limiter";
 
 const SEC_HEADERS = {
-  "User-Agent": "OpenForecaster/1.0 (local@openforecaster.dev)",
+  "User-Agent": "OpenTerminal/1.0 (local@openterminal.app)",
   Accept: "application/json",
 };
 

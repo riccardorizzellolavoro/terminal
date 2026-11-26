@@ -2,6 +2,8 @@
 
 import React, { useMemo, useState } from "react";
 import { SlidersHorizontal, X } from "lucide-react";
+import { useLanguage } from "@/components/i18n/LanguageProvider";
+import { TermHelp } from "@/components/ui/TermHelp";
 import {
   formatCompactCurrency,
   formatCurrency,
@@ -20,28 +22,38 @@ interface ValuationFinancialsTabProps {
 
 interface LineItemDef {
   key: keyof FinancialPeriodRow;
-  label: string;
+  labelEn: string;
+  labelIt: string;
+  helpKey: string;
   isCore: boolean;
   isEps?: boolean;
   yoyKey?: keyof FinancialPeriodRow;
 }
 
 const LINE_ITEMS: LineItemDef[] = [
-  { key: "revenue", label: "Revenue", isCore: true, yoyKey: "yoyRevenueGrowth" },
-  { key: "grossProfit", label: "Gross Profit", isCore: true },
-  { key: "operatingIncome", label: "Operating Income", isCore: true },
-  { key: "netIncome", label: "Net Income", isCore: true, yoyKey: "yoyNetIncomeGrowth" },
-  { key: "operatingCashFlow", label: "Operating Cash Flow", isCore: true },
-  { key: "capex", label: "CapEx", isCore: true },
-  { key: "freeCashFlow", label: "Free Cash Flow", isCore: true, yoyKey: "yoyFcfGrowth" },
-  { key: "costOfRevenue", label: "Cost of Revenue", isCore: false },
-  { key: "operatingExpenses", label: "Operating Expenses", isCore: false },
-  { key: "eps", label: "Diluted EPS", isCore: false, isEps: true },
-  { key: "cashAndEquivalents", label: "Cash & Equivalents", isCore: false },
-  { key: "totalAssets", label: "Total Assets", isCore: false },
-  { key: "longTermDebt", label: "Long-Term Debt", isCore: false },
-  { key: "shareholdersEquity", label: "Shareholders' Equity", isCore: false },
+  { key: "revenue", labelEn: "Revenue", labelIt: "Ricavi", helpKey: "revenueGrowth", isCore: true, yoyKey: "yoyRevenueGrowth" },
+  { key: "grossProfit", labelEn: "Gross Profit", labelIt: "Utile Lordo", helpKey: "grossProfit", isCore: true },
+  { key: "operatingIncome", labelEn: "Operating Income", labelIt: "Risultato Operativo", helpKey: "operatingIncome", isCore: true },
+  { key: "netIncome", labelEn: "Net Income", labelIt: "Utile Netto", helpKey: "netIncome", isCore: true, yoyKey: "yoyNetIncomeGrowth" },
+  { key: "operatingCashFlow", labelEn: "Operating Cash Flow", labelIt: "Flusso di Cassa Operativo", helpKey: "operatingCashFlow", isCore: true },
+  { key: "capex", labelEn: "CapEx", labelIt: "CapEx", helpKey: "capex", isCore: true },
+  { key: "freeCashFlow", labelEn: "Free Cash Flow", labelIt: "Flusso di Cassa Libero", helpKey: "freeCashFlow", isCore: true, yoyKey: "yoyFcfGrowth" },
+  { key: "costOfRevenue", labelEn: "Cost of Revenue", labelIt: "Costo dei Ricavi", helpKey: "grossProfit", isCore: false },
+  { key: "operatingExpenses", labelEn: "Operating Expenses", labelIt: "Costi Operativi", helpKey: "operatingIncome", isCore: false },
+  { key: "eps", labelEn: "Diluted EPS", labelIt: "EPS Diluito", helpKey: "peRatio", isCore: false, isEps: true },
+  { key: "cashAndEquivalents", labelEn: "Cash & Equivalents", labelIt: "Cassa ed Equivalenti", helpKey: "evEbitda", isCore: false },
+  { key: "totalAssets", labelEn: "Total Assets", labelIt: "Attivo Totale", helpKey: "altmanZScore", isCore: false },
+  { key: "longTermDebt", labelEn: "Long-Term Debt", labelIt: "Debito Lungo Termine", helpKey: "evEbitda", isCore: false },
+  { key: "shareholdersEquity", labelEn: "Shareholders' Equity", labelIt: "Patrimonio Netto", helpKey: "eva", isCore: false },
 ];
+
+const MODEL_HELP_KEY: Record<string, string> = {
+  dcf: "dcf",
+  eva: "eva",
+  lynch: "peterLynch",
+  fcf_yield: "freeCashFlow",
+  graham: "fairValue",
+};
 
 export function ValuationFinancialsTab({
   valuation,
@@ -51,6 +63,7 @@ export function ValuationFinancialsTab({
   quarterly,
   source,
 }: ValuationFinancialsTabProps) {
+  const { lang, t } = useLanguage();
   const [modelsDrawerOpen, setModelsDrawerOpen] = useState(false);
   const [periodMode, setPeriodMode] = useState<"annual" | "quarterly">("annual");
   const [showAllXbrl, setShowAllXbrl] = useState(false);
@@ -71,7 +84,6 @@ export function ValuationFinancialsTab({
     };
   }, [valuation, enabledModelIds]);
 
-  // Strictly cap to 5 columns total: Line Item + 3 recent periods + YoY %
   const periods = (periodMode === "annual" ? annual : quarterly).slice(-3);
   const visibleRows = showAllXbrl
     ? LINE_ITEMS
@@ -79,13 +91,16 @@ export function ValuationFinancialsTab({
 
   return (
     <div className="space-y-8">
-      {/* Composite Fair Value Header + Quality Scores (Zero nested card borders) */}
       {valuation && composite ? (
         <div className="rounded-xl border border-white/[0.06] bg-[#11151E] p-6">
           <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/[0.06] pb-6">
             <div>
-              <div className="text-xs text-slate-400">
-                Composite Fair Value ({composite.count} models active)
+              <div className="flex items-center text-xs text-slate-400">
+                <span>
+                  {t.valuation.compositeFairValue} ({composite.count}{" "}
+                  {t.valuation.modelsActive})
+                </span>
+                <TermHelp termKey="fairValue" />
               </div>
               <div className="mt-2 flex items-baseline gap-3">
                 <span className="font-mono text-3xl font-semibold tabular-nums text-white">
@@ -96,7 +111,7 @@ export function ValuationFinancialsTab({
                     composite.upside >= 0 ? "text-[#10B981]" : "text-[#F43F5E]"
                   }`}
                 >
-                  {formatSignedPct(composite.upside)} vs{" "}
+                  {formatSignedPct(composite.upside)} {t.valuation.vs}{" "}
                   {formatCurrency(valuation.currentPrice)}
                 </span>
               </div>
@@ -108,47 +123,62 @@ export function ValuationFinancialsTab({
               className="inline-flex items-center gap-2 rounded-lg bg-[#3B82F6] px-4 py-2 text-xs font-medium text-white transition hover:bg-[#2563EB]"
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />
-              Customize Models
+              {t.valuation.customizeModels}
             </button>
           </div>
 
           <div className="grid divide-y divide-white/[0.06] pt-6 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
             <div className="pb-4 sm:pb-0 sm:pr-6">
-              <div className="text-xs text-slate-400">Piotroski F-Score</div>
+              <div className="flex items-center text-xs text-slate-400">
+                <span>{t.valuation.piotroski}</span>
+                <TermHelp termKey="piotroskiFScore" />
+              </div>
               <div className="mt-1.5 font-mono text-xl font-semibold tabular-nums text-white">
                 {valuation.quality.piotroskiFScore} / 9
               </div>
               <div className="mt-0.5 text-xs text-slate-400">
                 {valuation.quality.piotroskiFScore >= 7
-                  ? "Institutional Quality"
-                  : "Moderate Strength"}
+                  ? t.valuation.instQuality
+                  : t.valuation.modStrength}
               </div>
             </div>
 
             <div className="py-4 sm:px-6 sm:py-0">
-              <div className="text-xs text-slate-400">Altman Z-Score</div>
+              <div className="flex items-center text-xs text-slate-400">
+                <span>{t.valuation.altman}</span>
+                <TermHelp termKey="altmanZScore" />
+              </div>
               <div className="mt-1.5 font-mono text-xl font-semibold tabular-nums text-white">
                 {valuation.quality.altmanZScore.toFixed(2)}
               </div>
               <div className="mt-0.5 text-xs text-slate-400">
-                {valuation.quality.altmanZone} Zone
+                {valuation.quality.altmanZone === "Safe"
+                  ? t.valuation.safeZone
+                  : valuation.quality.altmanZone === "Grey"
+                    ? t.valuation.greyZone
+                    : t.valuation.distressZone}
               </div>
             </div>
 
             <div className="pt-4 sm:pl-6 sm:pt-0">
-              <div className="text-xs text-slate-400">Beneish M-Score</div>
+              <div className="flex items-center text-xs text-slate-400">
+                <span>{t.valuation.beneish}</span>
+                <TermHelp termKey="beneishMScore" />
+              </div>
               <div className="mt-1.5 font-mono text-xl font-semibold tabular-nums text-white">
                 {valuation.quality.beneishMScore.toFixed(2)}
               </div>
               <div className="mt-0.5 text-xs text-slate-400">
-                {valuation.quality.beneishFlag} Earnings Quality
+                {valuation.quality.beneishFlag === "Clean"
+                  ? t.valuation.cleanQuality
+                  : t.valuation.warningQuality}
               </div>
             </div>
           </div>
         </div>
       ) : (
         <div className="rounded-xl border border-white/[0.06] bg-[#11151E] p-6 text-sm text-slate-400">
-          DCF/EVA/Piotroski valuation applies to equity issuers.
+          {t.valuation.notEquity}
         </div>
       )}
 
@@ -156,11 +186,12 @@ export function ValuationFinancialsTab({
       <div className="rounded-xl border border-white/[0.06] bg-[#11151E] p-6">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h3 className="text-sm font-medium text-white">
-              Normalized SEC Financial Statements
+            <h3 className="flex items-center text-sm font-medium text-white">
+              <span>{t.valuation.financialStatements}</span>
+              <TermHelp termKey="xbrl" />
             </h3>
             <p className="mt-0.5 text-xs text-slate-400">
-              Source: {source.toUpperCase()} · Standalone Q4 = FY − (Q1+Q2+Q3)
+              {t.overview.source}: {source.toUpperCase()}
             </p>
           </div>
 
@@ -172,7 +203,7 @@ export function ValuationFinancialsTab({
                 onChange={(e) => setShowAllXbrl(e.target.checked)}
                 className="h-3.5 w-3.5 accent-[#3B82F6]"
               />
-              Show all XBRL rows
+              {t.valuation.showAllXbrl}
             </label>
 
             <div className="inline-flex rounded-lg border border-white/[0.08] bg-[#0B0E14] p-0.5 text-xs">
@@ -181,13 +212,13 @@ export function ValuationFinancialsTab({
                   key={m}
                   type="button"
                   onClick={() => setPeriodMode(m)}
-                  className={`rounded-md px-3 py-1 capitalize transition ${
+                  className={`rounded-md px-3 py-1 transition ${
                     periodMode === m
                       ? "bg-white/[0.12] text-white"
                       : "text-slate-400 hover:text-white"
                   }`}
                 >
-                  {m}
+                  {m === "annual" ? t.valuation.annual : t.valuation.quarterly}
                 </button>
               ))}
             </div>
@@ -198,7 +229,7 @@ export function ValuationFinancialsTab({
           <table className="w-full border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-white/[0.06] text-xs text-slate-400">
-                <th className="py-3 pr-4 font-medium">Line Item</th>
+                <th className="py-3 pr-4 font-medium">{t.valuation.lineItem}</th>
                 {periods.map((p) => (
                   <th
                     key={p.period}
@@ -213,7 +244,8 @@ export function ValuationFinancialsTab({
                   </th>
                 ))}
                 <th className="py-3 pl-4 text-right font-mono font-medium">
-                  YoY %
+                  {t.valuation.yoyPct}
+                  <TermHelp termKey="yoyPct" />
                 </th>
               </tr>
             </thead>
@@ -238,7 +270,8 @@ export function ValuationFinancialsTab({
                 return (
                   <tr key={row.key} className="h-12 hover:bg-white/[0.02]">
                     <td className="py-3 pr-4 font-medium text-slate-200">
-                      {row.label}
+                      {lang === "it" ? row.labelIt : row.labelEn}
+                      <TermHelp termKey={row.helpKey} />
                     </td>
                     {periods.map((p) => {
                       const raw = Number(p[row.key] ?? 0);
@@ -274,7 +307,7 @@ export function ValuationFinancialsTab({
         </div>
       </div>
 
-      {/* Customize Models Slide-Over Drawer (Interactive Valuation & Quality Toggles) */}
+      {/* Customize Models Slide-Over Drawer */}
       {modelsDrawerOpen && valuation && (
         <div
           className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm"
@@ -285,11 +318,11 @@ export function ValuationFinancialsTab({
             <div className="flex items-center justify-between border-b border-white/[0.06] pb-4">
               <div>
                 <h3 className="text-sm font-semibold text-white">
-                  Customize Models &amp; Quality Scores
+                  {t.valuation.customizeModels}
                 </h3>
                 <p className="text-xs text-slate-400">
-                  WACC {(valuation.wacc * 100).toFixed(2)}% · ROIC{" "}
-                  {(valuation.roic * 100).toFixed(1)}%
+                  {t.valuation.wacc} {(valuation.wacc * 100).toFixed(2)}% ·{" "}
+                  {t.valuation.roic} {(valuation.roic * 100).toFixed(1)}%
                 </p>
               </div>
               <button
@@ -317,8 +350,11 @@ export function ValuationFinancialsTab({
                         className="mt-0.5 h-4 w-4 accent-[#3B82F6]"
                       />
                       <div>
-                        <div className="text-xs font-medium text-white">
-                          {m.name}
+                        <div className="flex items-center text-xs font-medium text-white">
+                          <span>{m.name}</span>
+                          {MODEL_HELP_KEY[m.id] && (
+                            <TermHelp termKey={MODEL_HELP_KEY[m.id]} />
+                          )}
                         </div>
                         <div className="mt-0.5 text-[11px] text-slate-400">
                           {m.formulaSummary}
@@ -344,10 +380,11 @@ export function ValuationFinancialsTab({
               </div>
 
               <div className="rounded-xl bg-[#11151E] p-4">
-                <div className="mb-3 text-xs font-medium text-white">
-                  Piotroski F-Score Breakdown ({valuation.quality.piotroskiFScore}
-                  /9) · Altman {valuation.quality.altmanZScore.toFixed(2)} ·
-                  Beneish {valuation.quality.beneishMScore.toFixed(2)}
+                <div className="mb-3 flex items-center text-xs font-medium text-white">
+                  <span>
+                    {t.valuation.piotroski} ({valuation.quality.piotroskiFScore}/9)
+                  </span>
+                  <TermHelp termKey="piotroskiFScore" />
                 </div>
                 <div className="divide-y divide-white/[0.06]">
                   {valuation.quality.piotroskiBreakdown.map((item) => (
@@ -361,7 +398,7 @@ export function ValuationFinancialsTab({
                           item.passed ? "text-[#10B981]" : "text-[#F43F5E]"
                         }`}
                       >
-                        {item.passed ? "PASS" : "FAIL"}
+                        {item.passed ? t.valuation.pass : t.valuation.fail}
                       </span>
                     </div>
                   ))}
@@ -371,7 +408,9 @@ export function ValuationFinancialsTab({
 
             {composite && (
               <div className="mt-4 flex items-center justify-between border-t border-white/[0.06] pt-4 text-sm">
-                <span className="text-slate-400">Composite Fair Value</span>
+                <span className="text-slate-400">
+                  {t.valuation.compositeFairValue}
+                </span>
                 <span className="font-mono font-semibold tabular-nums text-white">
                   {formatCurrency(composite.fairValue)} (
                   {formatSignedPct(composite.upside)})

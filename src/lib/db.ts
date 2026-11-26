@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 
 const globalForDb = globalThis as unknown as {
-  __openforecasterDb?: Database.Database;
+  __openterminalDb?: Database.Database;
 };
 
 function getDbPath(): string {
@@ -31,21 +31,10 @@ function initSchema(db: Database.Database) {
       added_at TEXT NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS user_trials (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      email TEXT NOT NULL UNIQUE,
-      plan TEXT NOT NULL DEFAULT 'annual',
-      status TEXT NOT NULL DEFAULT 'trial_active',
-      trial_ends_at TEXT NOT NULL,
-      created_at TEXT NOT NULL
-    );
-
-    CREATE TABLE IF NOT EXISTS webinar_registrations (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      email TEXT NOT NULL,
-      name TEXT NOT NULL,
-      event_type TEXT NOT NULL,
-      created_at TEXT NOT NULL
+    CREATE TABLE IF NOT EXISTS user_preferences (
+      pref_key TEXT PRIMARY KEY,
+      pref_value TEXT NOT NULL,
+      updated_at TEXT NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS filing_chunks (
@@ -60,6 +49,9 @@ function initSchema(db: Database.Database) {
     );
 
     CREATE INDEX IF NOT EXISTS idx_filing_chunks_symbol ON filing_chunks(symbol);
+
+    DROP TABLE IF EXISTS user_trials;
+    DROP TABLE IF EXISTS webinar_registrations;
   `);
 
   // Seed default watchlist if empty
@@ -71,19 +63,50 @@ function initSchema(db: Database.Database) {
     const insert = db.prepare(
       "INSERT OR IGNORE INTO watchlist (symbol, added_at) VALUES (?, ?)"
     );
-    for (const sym of ["AAPL", "NVDA", "MSFT", "TSLA", "BTCUSD"]) {
+    for (const sym of ["AAPL", "IWDA.AS", "BTC-USD", "GC=F", "US10Y"]) {
       insert.run(sym, now);
     }
   }
 }
 
 export function getDb(): Database.Database {
-  if (!globalForDb.__openforecasterDb) {
+  if (!globalForDb.__openterminalDb) {
     const db = new Database(getDbPath());
     initSchema(db);
-    globalForDb.__openforecasterDb = db;
+    globalForDb.__openterminalDb = db;
   }
-  return globalForDb.__openforecasterDb;
+  return globalForDb.__openterminalDb;
+}
+
+export function getPreference(key: string): string | null {
+  const db = getDb();
+  const row = db
+    .prepare("SELECT pref_value FROM user_preferences WHERE pref_key = ?")
+    .get(key) as { pref_value: string } | undefined;
+  return row?.pref_value ?? null;
+}
+
+export function setPreference(key: string, value: string): void {
+  const db = getDb();
+  db.prepare(
+    `INSERT INTO user_preferences (pref_key, pref_value, updated_at)
+     VALUES (?, ?, ?)
+     ON CONFLICT(pref_key) DO UPDATE SET
+       pref_value = excluded.pref_value,
+       updated_at = excluded.updated_at`
+  ).run(key, value, new Date().toISOString());
+}
+
+export function getAllPreferences(): Record<string, string> {
+  const db = getDb();
+  const rows = db
+    .prepare("SELECT pref_key, pref_value FROM user_preferences")
+    .all() as { pref_key: string; pref_value: string }[];
+  const out: Record<string, string> = {};
+  for (const r of rows) {
+    out[r.pref_key] = r.pref_value;
+  }
+  return out;
 }
 
 export function getCached<T>(key: string): { data: T; fresh: boolean } | null {

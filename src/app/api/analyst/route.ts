@@ -3,6 +3,7 @@ import {
   getChunksForSymbol,
   runCitationLockedAnalyst,
 } from "@/lib/adapters/ai-analyst";
+import { LangCode } from "@/lib/types";
 
 export async function GET(request: NextRequest) {
   const symbol = request.nextUrl.searchParams.get("symbol") || "AAPL";
@@ -15,6 +16,7 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as {
       symbol?: string;
       question?: string;
+      lang?: LangCode;
       provider?: "local" | "openai" | "anthropic" | "ollama";
       apiKey?: string;
       baseUrl?: string;
@@ -32,6 +34,7 @@ export async function POST(request: NextRequest) {
     const result = await runCitationLockedAnalyst({
       symbol: body.symbol,
       question: body.question,
+      lang: body.lang,
       provider: body.provider,
       apiKey: body.apiKey,
       baseUrl: body.baseUrl,

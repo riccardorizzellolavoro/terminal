@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
+import { useLanguage } from "@/components/i18n/LanguageProvider";
+import { TermHelp } from "@/components/ui/TermHelp";
 import { formatPrice } from "@/lib/format";
 import { OptionContract, OptionsChainResponse } from "@/lib/types";
 
@@ -9,10 +11,12 @@ interface OptionsTabProps {
 }
 
 export function OptionsTab({ symbol }: OptionsTabProps) {
+  const { t } = useLanguage();
   const [chain, setChain] = useState<OptionsChainResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedExp, setSelectedExp] = useState<string>("");
   const [showFullChain, setShowFullChain] = useState(false);
+  const [showGreeks, setShowGreeks] = useState(false);
 
   const loadChain = async (exp?: string) => {
     setLoading(true);
@@ -72,7 +76,7 @@ export function OptionsTab({ symbol }: OptionsTabProps) {
   if (loading && !chain) {
     return (
       <div className="rounded-xl border border-white/[0.06] bg-[#11151E] p-6 text-sm text-slate-400">
-        Loading options chain for {symbol}...
+        {t.options.loading}
       </div>
     );
   }
@@ -80,7 +84,7 @@ export function OptionsTab({ symbol }: OptionsTabProps) {
   if (!chain) {
     return (
       <div className="rounded-xl border border-white/[0.06] bg-[#11151E] p-6 text-sm text-slate-400">
-        Options chain unavailable for {symbol}.
+        {t.options.unavailable}
       </div>
     );
   }
@@ -88,27 +92,48 @@ export function OptionsTab({ symbol }: OptionsTabProps) {
   return (
     <div className="rounded-xl border border-white/[0.06] bg-[#11151E] p-6">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <label className="text-xs text-slate-400">Expiration</label>
-          <select
-            aria-label="Option expiration date"
-            value={selectedExp}
-            onChange={(e) => loadChain(e.target.value)}
-            className="rounded-lg border border-white/[0.08] bg-[#0B0E14] px-3 py-1.5 font-mono text-xs text-white outline-none"
-          >
-            {chain.expirations.map((exp) => (
-              <option key={exp} value={exp}>
-                {exp}
-              </option>
-            ))}
-          </select>
+        <div className="flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <label className="text-xs text-slate-400">
+              {t.options.expiration}
+            </label>
+            <select
+              aria-label="Option expiration date"
+              value={selectedExp}
+              onChange={(e) => loadChain(e.target.value)}
+              className="rounded-lg border border-white/[0.08] bg-[#0B0E14] px-3 py-1.5 font-mono text-xs text-white outline-none"
+            >
+              {chain.expirations.map((exp) => (
+                <option key={exp} value={exp}>
+                  {exp}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-300">
+            <input
+              type="checkbox"
+              checked={showGreeks}
+              onChange={(e) => setShowGreeks(e.target.checked)}
+              className="h-3.5 w-3.5 accent-[#3B82F6]"
+            />
+            <span>{t.options.showGreeks}</span>
+            <TermHelp termKey="delta" />
+            <TermHelp termKey="theta" />
+            <TermHelp termKey="vega" />
+            <TermHelp termKey="gamma" />
+          </label>
         </div>
 
-        <div className="text-xs text-slate-400">
-          Spot{" "}
-          <span className="font-mono font-medium text-white tabular-nums">
-            {formatPrice(chain.underlyingPrice, symbol)}
+        <div className="flex items-center gap-2 text-xs text-slate-400">
+          <span>
+            {t.options.spot}{" "}
+            <span className="font-mono font-medium text-white tabular-nums">
+              {formatPrice(chain.underlyingPrice, symbol)}
+            </span>
           </span>
+          <TermHelp termKey="inTheMoney" />
         </div>
       </div>
 
@@ -117,14 +142,27 @@ export function OptionsTab({ symbol }: OptionsTabProps) {
         <table className="w-full border-collapse text-right font-mono text-sm tabular-nums">
           <thead>
             <tr className="border-b border-white/[0.06] text-xs text-slate-400">
-              <th className="py-3 pr-3 font-medium">Call Bid / Ask · OI</th>
-              <th className="px-3 py-3 font-medium">Call Last · IV</th>
-              <th className="bg-white/[0.03] px-4 py-3 text-center font-medium text-white">
-                Strike
+              <th className="py-3 pr-3 font-medium">
+                {showGreeks ? t.options.greeksCall : t.options.callBidAskOi}
+                <TermHelp termKey={showGreeks ? "delta" : "bidAskSpread"} />
+                {!showGreeks && <TermHelp termKey="openInterest" />}
               </th>
-              <th className="px-3 py-3 text-left font-medium">Put Last · IV</th>
+              <th className="px-3 py-3 font-medium">
+                {t.options.callLastIv}
+                <TermHelp termKey="callOption" />
+                <TermHelp termKey="impliedVolatility" />
+              </th>
+              <th className="bg-white/[0.03] px-4 py-3 text-center font-medium text-white">
+                {t.options.strike}
+                <TermHelp termKey="strikePrice" />
+              </th>
+              <th className="px-3 py-3 text-left font-medium">
+                {t.options.putLastIv}
+                <TermHelp termKey="putOption" />
+              </th>
               <th className="py-3 pl-3 text-left font-medium">
-                Put Bid / Ask · OI
+                {showGreeks ? t.options.greeksPut : t.options.putBidAskOi}
+                <TermHelp termKey={showGreeks ? "gamma" : "openInterest"} />
               </th>
             </tr>
           </thead>
@@ -137,14 +175,28 @@ export function OptionsTab({ symbol }: OptionsTabProps) {
                   }`}
                 >
                   {call ? (
-                    <div>
+                    showGreeks ? (
                       <div>
-                        {call.bid.toFixed(2)} / {call.ask.toFixed(2)}
+                        <div>
+                          Δ {call.delta?.toFixed(2) ?? "—"} · Γ{" "}
+                          {call.gamma?.toFixed(3) ?? "—"}
+                        </div>
+                        <div className="text-[11px] text-slate-500">
+                          Θ {call.theta?.toFixed(2) ?? "—"} · ν{" "}
+                          {call.vega?.toFixed(2) ?? "—"}
+                        </div>
                       </div>
-                      <div className="text-[11px] text-slate-500">
-                        OI {call.openInterest.toLocaleString()}
+                    ) : (
+                      <div>
+                        <div>
+                          {call.bid.toFixed(2)} / {call.ask.toFixed(2)}
+                        </div>
+                        <div className="text-[11px] text-slate-500">
+                          OI {call.openInterest.toLocaleString()} · Vol{" "}
+                          {call.volume.toLocaleString()}
+                        </div>
                       </div>
-                    </div>
+                    )
                   ) : (
                     "—"
                   )}
@@ -168,7 +220,7 @@ export function OptionsTab({ symbol }: OptionsTabProps) {
                 </td>
 
                 <td className="bg-white/[0.04] px-4 py-2 text-center font-semibold text-white">
-                  {strike.toFixed(symbol === "EURUSD" ? 4 : 2)}
+                  {strike.toFixed(symbol.endsWith("=X") ? 4 : 2)}
                 </td>
 
                 <td
@@ -194,14 +246,28 @@ export function OptionsTab({ symbol }: OptionsTabProps) {
                   }`}
                 >
                   {put ? (
-                    <div>
+                    showGreeks ? (
                       <div>
-                        {put.bid.toFixed(2)} / {put.ask.toFixed(2)}
+                        <div>
+                          Δ {put.delta?.toFixed(2) ?? "—"} · Γ{" "}
+                          {put.gamma?.toFixed(3) ?? "—"}
+                        </div>
+                        <div className="text-[11px] text-slate-500">
+                          Θ {put.theta?.toFixed(2) ?? "—"} · ν{" "}
+                          {put.vega?.toFixed(2) ?? "—"}
+                        </div>
                       </div>
-                      <div className="text-[11px] text-slate-500">
-                        OI {put.openInterest.toLocaleString()}
+                    ) : (
+                      <div>
+                        <div>
+                          {put.bid.toFixed(2)} / {put.ask.toFixed(2)}
+                        </div>
+                        <div className="text-[11px] text-slate-500">
+                          OI {put.openInterest.toLocaleString()} · Vol{" "}
+                          {put.volume.toLocaleString()}
+                        </div>
                       </div>
-                    </div>
+                    )
                   ) : (
                     "—"
                   )}
@@ -214,15 +280,15 @@ export function OptionsTab({ symbol }: OptionsTabProps) {
 
       <div className="mt-4 flex items-center justify-between border-t border-white/[0.06] pt-4 text-xs text-slate-400">
         <span>
-          Showing {pairedRows.length} strikes{" "}
-          {!showFullChain ? "(±5 around spot)" : "(full chain)"}
+          {t.options.showingStrikes} {pairedRows.length} {t.options.strikes}{" "}
+          {!showFullChain ? t.options.aroundSpot : t.options.fullChain}
         </span>
         <button
           type="button"
           onClick={() => setShowFullChain((v) => !v)}
           className="rounded-md border border-white/[0.08] px-3 py-1.5 text-slate-200 transition hover:bg-white/[0.04] hover:text-white"
         >
-          {showFullChain ? "Filter to ±5 strikes" : "Show full chain"}
+          {showFullChain ? t.options.filterBtn : t.options.showFullBtn}
         </button>
       </div>
     </div>

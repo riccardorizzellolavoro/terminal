@@ -1,4 +1,13 @@
-export type AssetClass = "equity" | "fx" | "crypto" | "commodity";
+export type AssetClass =
+  | "equity"
+  | "etf"
+  | "index"
+  | "fx"
+  | "crypto"
+  | "commodity"
+  | "bond";
+
+export type LangCode = "en" | "it";
 
 export interface TickerProfile {
   symbol: string;
@@ -9,9 +18,13 @@ export interface TickerProfile {
   currency: string;
   cik?: string;
   description: string;
+  descriptionIt?: string;
   employees?: number;
   headquarters?: string;
   website?: string;
+  expenseRatio?: number;
+  aum?: number;
+  maturity?: string;
 }
 
 export interface QuoteSnapshot {
@@ -38,7 +51,7 @@ export interface QuoteSnapshot {
 }
 
 export interface OhlcvBar {
-  time: string; // YYYY-MM-DD
+  time: string;
   open: number;
   high: number;
   low: number;
@@ -47,7 +60,7 @@ export interface OhlcvBar {
 }
 
 export interface FinancialPeriodRow {
-  period: string; // e.g., "2025", "2026-Q3", "2026-Q4"
+  period: string;
   fiscalYear: number;
   fiscalQuarter: "FY" | "Q1" | "Q2" | "Q3" | "Q4";
   endDate: string;
@@ -100,7 +113,7 @@ export interface ValuationModelResult {
 }
 
 export interface QualityScores {
-  piotroskiFScore: number; // 0-9
+  piotroskiFScore: number;
   piotroskiBreakdown: { label: string; passed: boolean; detail: string }[];
   altmanZScore: number;
   altmanZone: "Safe" | "Grey" | "Distress";
@@ -121,8 +134,8 @@ export interface ValuationBundle {
 }
 
 export interface SeasonalityWindowStats {
-  startMonthDay: string; // MM-DD
-  endMonthDay: string; // MM-DD
+  startMonthDay: string;
+  endMonthDay: string;
   yearsAnalyzed: number;
   winRate: number;
   avgReturn: number;
@@ -144,7 +157,7 @@ export interface SeasonalityWindowStats {
 
 export interface SeasonalityCurves {
   symbol: string;
-  days: string[]; // MM-DD labels (252 trading-day normalized grid)
+  days: string[];
   curve10Y: number[];
   curve20Y: number[];
   curve30Y: number[];
@@ -163,6 +176,10 @@ export interface OptionContract {
   openInterest: number;
   impliedVolatility: number;
   inTheMoney: boolean;
+  delta: number;
+  gamma: number;
+  theta: number;
+  vega: number;
 }
 
 export interface OptionsChainResponse {
@@ -231,6 +248,16 @@ export interface MacroIndicator {
   history: { date: string; value: number }[];
 }
 
+export interface SovereignRatesSnapshot {
+  usCurve: Array<{ tenor: string; yieldPct: number }>;
+  euBenchmarks: Array<{ id: string; label: string; value: number; unit: string; change: number }>;
+  spreadsHistory: Array<{
+    date: string;
+    us2s10sBps: number;
+    btpBundBps: number;
+  }>;
+}
+
 export interface MarketHeadline {
   id: string;
   title: string;
@@ -244,9 +271,9 @@ export interface MarketHeadline {
 export interface FilingChunk {
   id: string;
   symbol: string;
-  docTitle: string; // e.g., "Transcript Q3 '26"
-  sectionLabel: string; // e.g., "¶14"
-  citationKey: string; // e.g., "[Transcript Q3 '26, ¶14]"
+  docTitle: string;
+  sectionLabel: string;
+  citationKey: string;
   fiscalPeriod: string;
   publishedDate: string;
   text: string;
@@ -277,10 +304,7 @@ export interface WatchlistEntry {
 
 export type TerminalTabId =
   | "overview"
-  | "chart"
-  | "financials"
   | "valuation"
   | "seasonality"
   | "options"
-  | "smart-money"
   | "macro";

@@ -1,3 +1,4 @@
+import { computeOptionGreeks } from "@/lib/quant/greeks";
 import {
   CongressTrade,
   CotPoint,
@@ -9,7 +10,7 @@ import {
   OptionContract,
   SecFilingItem,
 } from "@/lib/types";
-import { SEED_BASE_QUOTES } from "./universe";
+import { normalizeSymbol, SEED_BASE_QUOTES } from "./universe";
 
 function buildFinancials(
   baseRevB: number,
@@ -235,7 +236,7 @@ export function getSeedOptionsChain(
   puts: OptionContract[];
   underlyingPrice: number;
 } {
-  const sym = symbol.toUpperCase();
+  const sym = normalizeSymbol(symbol);
   const base = SEED_BASE_QUOTES[sym]?.price ?? 185.0;
   const expirations = [
     "2026-12-04",
@@ -248,7 +249,7 @@ export function getSeedOptionsChain(
   const expIdx = expirations.indexOf(selExp);
   const dteFactor = Math.sqrt((14 + expIdx * 32) / 365);
 
-  const step = base > 1000 ? 1000 : base > 300 ? 5 : base > 80 ? 2.5 : base > 10 ? 1 : 0.01;
+  const step = base > 1000 ? 1000 : base > 300 ? 5 : base > 80 ? 2.5 : base > 10 ? 1 : 0.05;
   const atm = Math.round(base / step) * step;
 
   const calls: OptionContract[] = [];
@@ -257,7 +258,7 @@ export function getSeedOptionsChain(
   for (let i = -10; i <= 10; i++) {
     const strike = Number((atm + i * step).toFixed(base < 5 ? 4 : 2));
     const moneyness = (base - strike) / base;
-    const baseIv = (sym === "TSLA" || sym === "NVDA" ? 0.48 : sym === "BTCUSD" ? 0.62 : 0.24) + Math.abs(i) * 0.008;
+    const baseIv = (sym === "TSLA" || sym === "NVDA" ? 0.48 : sym === "BTC-USD" ? 0.62 : 0.24) + Math.abs(i) * 0.008;
     const timeValue = base * baseIv * dteFactor * 0.4 * Math.exp(-Math.pow(moneyness * 6, 2));
 
     const callIntrinsic = Math.max(0, base - strike);
@@ -269,6 +270,23 @@ export function getSeedOptionsChain(
     const putSpread = Math.max(0.02, Number((putLast * 0.025).toFixed(2)));
 
     const weight = Math.max(0.15, 1 - Math.abs(i) * 0.08);
+    const callIvPct = Number((baseIv * 100).toFixed(1));
+    const putIvPct = Number(((baseIv + 0.018) * 100).toFixed(1));
+    const callGreeks = computeOptionGreeks({
+      spot: base,
+      strike,
+      expiration: selExp,
+      ivPct: callIvPct,
+      type: "call",
+    });
+    const putGreeks = computeOptionGreeks({
+      spot: base,
+      strike,
+      expiration: selExp,
+      ivPct: putIvPct,
+      type: "put",
+    });
+
     calls.push({
       contractSymbol: `${sym}${selExp.replace(/-/g, "").slice(2)}C${Math.round(strike * 1000)}`,
       strike,
@@ -279,8 +297,9 @@ export function getSeedOptionsChain(
       lastPrice: callLast,
       volume: Math.round(1450 * weight + ((Math.abs(i) * 137) % 400)),
       openInterest: Math.round(18400 * weight + ((Math.abs(i) * 913) % 4500)),
-      impliedVolatility: Number((baseIv * 100).toFixed(1)),
+      impliedVolatility: callIvPct,
       inTheMoney: strike < base,
+      ...callGreeks,
     });
 
     puts.push({
@@ -293,8 +312,9 @@ export function getSeedOptionsChain(
       lastPrice: putLast,
       volume: Math.round(1180 * weight + ((Math.abs(i) * 193) % 360)),
       openInterest: Math.round(15200 * weight + ((Math.abs(i) * 821) % 3900)),
-      impliedVolatility: Number(((baseIv + 0.018) * 100).toFixed(1)),
+      impliedVolatility: putIvPct,
       inTheMoney: strike > base,
+      ...putGreeks,
     });
   }
 
@@ -317,20 +337,38 @@ export function getSeedSmartMoney(symbol: string): {
   insiderTrades: InsiderTrade[];
   congressTrades: CongressTrade[];
 } {
-  const sym = symbol.toUpperCase();
+  const sym = normalizeSymbol(symbol);
   const cotAssetMap: Record<string, string> = {
     AAPL: "NASDAQ-100 E-Mini Futures (CFTC Legacy)",
     NVDA: "NASDAQ-100 E-Mini Futures (CFTC Legacy)",
     MSFT: "NASDAQ-100 E-Mini Futures (CFTC Legacy)",
     TSLA: "S&P 500 E-Mini Futures (CFTC Legacy)",
-    EURUSD: "Euro FX Futures — CME (CFTC Legacy)",
-    BTCUSD: "CME Bitcoin Futures (CFTC Legacy)",
+    "EURUSD=X": "Euro FX Futures — CME (CFTC Legacy)",
+    "USDJPY=X": "Japanese Yen Futures — CME (CFTC Legacy)",
+    "GBPUSD=X": "British Pound Futures — CME (CFTC Legacy)",
+    "USDCHF=X": "Swiss Franc Futures — CME (CFTC Legacy)",
+    "DX-Y.NYB": "US Dollar Index Futures — ICE (CFTC Legacy)",
+    "BTC-USD": "CME Bitcoin Futures (CFTC Legacy)",
+    "ETH-USD": "CME Ether Futures (CFTC Legacy)",
     "GC=F": "COMEX Gold Futures (CFTC Legacy)",
+    "SI=F": "COMEX Silver Futures (CFTC Legacy)",
+    "CL=F": "NYMEX WTI Crude Oil Futures (CFTC Legacy)",
+    "BZ=F": "ICE Brent Crude Futures (CFTC Legacy)",
+    "NG=F": "NYMEX Henry Hub Natural Gas (CFTC Legacy)",
+    "HG=F": "COMEX Copper Futures (CFTC Legacy)",
+    "ZC=F": "CBOT Corn Futures (CFTC Legacy)",
+    "ZW=F": "CBOT Wheat Futures (CFTC Legacy)",
   };
 
   const cotSeries: CotPoint[] = [];
   const start = new Date("2025-12-02T00:00:00Z");
-  const isBullishAsset = sym === "AAPL" || sym === "NVDA" || sym === "GC=F" || sym === "BTCUSD";
+  const isBullishAsset =
+    sym === "AAPL" ||
+    sym === "NVDA" ||
+    sym === "GC=F" ||
+    sym === "SI=F" ||
+    sym === "HG=F" ||
+    sym === "BTC-USD";
 
   for (let w = 0; w < 52; w++) {
     const d = new Date(start);
@@ -422,12 +460,12 @@ export function getSeedSmartMoney(symbol: string): {
       tone: "bearish",
       alert: "Net insider Form 4 disposition of $15.79M over past 30 days.",
     },
-    EURUSD: {
+    "EURUSD=X": {
       label: "Neutral COT",
       tone: "neutral",
       alert: "Commercial hedgers moderately net long at 61st 3-year percentile.",
     },
-    BTCUSD: {
+    "BTC-USD": {
       label: "Bullish COT Momentum",
       tone: "bullish",
       alert: "CME Leveraged Funds & Asset Managers net long expansion (88th percentile).",
@@ -436,6 +474,21 @@ export function getSeedSmartMoney(symbol: string): {
       label: "Bullish Commercial Base",
       tone: "bullish",
       alert: "COMEX open interest rising alongside steady Managed Money net longs (84th percentile).",
+    },
+    "CL=F": {
+      label: "Neutral COT",
+      tone: "neutral",
+      alert: "Managed Money WTI net longs near 48th percentile.",
+    },
+    "SI=F": {
+      label: "Bullish Commercial Base",
+      tone: "bullish",
+      alert: "COMEX Silver spec positioning rising into 78th percentile.",
+    },
+    "HG=F": {
+      label: "Bullish COT Momentum",
+      tone: "bullish",
+      alert: "Industrial copper net longs at 81st percentile on grid demand.",
     },
     GOOGL: {
       label: "Bullish Insider Cluster",
@@ -594,6 +647,22 @@ export const SEED_FILING_CHUNKS: FilingChunk[] = [
 
 export const SEED_MACRO_INDICATORS: MacroIndicator[] = [
   {
+    id: "DGS5",
+    label: "US 5Y Treasury Yield",
+    value: 4.12,
+    unit: "%",
+    change: -0.03,
+    date: "2026-11-25",
+    history: [
+      { date: "2026-06", value: 4.41 },
+      { date: "2026-07", value: 4.25 },
+      { date: "2026-08", value: 4.02 },
+      { date: "2026-09", value: 3.88 },
+      { date: "2026-10", value: 4.18 },
+      { date: "2026-11", value: 4.12 },
+    ],
+  },
+  {
     id: "DGS10",
     label: "US 10Y Treasury Yield",
     value: 4.24,
@@ -607,6 +676,22 @@ export const SEED_MACRO_INDICATORS: MacroIndicator[] = [
       { date: "2026-09", value: 4.05 },
       { date: "2026-10", value: 4.31 },
       { date: "2026-11", value: 4.24 },
+    ],
+  },
+  {
+    id: "DGS30",
+    label: "US 30Y Treasury Yield",
+    value: 4.44,
+    unit: "%",
+    change: -0.03,
+    date: "2026-11-25",
+    history: [
+      { date: "2026-06", value: 4.54 },
+      { date: "2026-07", value: 4.49 },
+      { date: "2026-08", value: 4.35 },
+      { date: "2026-09", value: 4.31 },
+      { date: "2026-10", value: 4.5 },
+      { date: "2026-11", value: 4.44 },
     ],
   },
   {
@@ -697,7 +782,7 @@ export const SEED_HEADLINES: MarketHeadline[] = [
   {
     id: "hd-3",
     title: "Hyperscaler AI capex commitments lift Blackwell rack demand through 1H 2027",
-    source: "OpenForecaster Quant Wire",
+    source: "OpenTerminal Quant Wire",
     publishedAt: "2026-11-25T19:10:00Z",
     url: "https://www.sec.gov/edgar/browse/?CIK=0001045810",
     sentiment: "positive",

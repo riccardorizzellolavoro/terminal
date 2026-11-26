@@ -10,11 +10,14 @@ import {
   LineSeries,
 } from "lightweight-charts";
 import { SlidersHorizontal } from "lucide-react";
+import { useLanguage } from "@/components/i18n/LanguageProvider";
+import { TermHelp } from "@/components/ui/TermHelp";
 import { OhlcvBar } from "@/lib/types";
 
 interface ChartTabProps {
   symbol: string;
   initialBars: OhlcvBar[];
+  isRate?: boolean;
 }
 
 type Timeframe = "1M" | "6M" | "1Y" | "5Y";
@@ -91,12 +94,12 @@ function computeMacd(bars: OhlcvBar[]) {
   });
 }
 
-export function ChartTab({ symbol, initialBars }: ChartTabProps) {
+export function ChartTab({ symbol, initialBars, isRate = false }: ChartTabProps) {
+  const { t } = useLanguage();
   const [timeframe, setTimeframe] = useState<Timeframe>("1Y");
   const [bars, setBars] = useState<OhlcvBar[]>(initialBars);
   const [loading, setLoading] = useState(false);
 
-  // Zero indicators enabled by default
   const [indMenuOpen, setIndMenuOpen] = useState(false);
   const [sma20, setSma20] = useState(false);
   const [sma50, setSma50] = useState(false);
@@ -180,23 +183,25 @@ export function ChartTab({ symbol, initialBars }: ChartTabProps) {
       }))
     );
 
-    const volumeSeries = chart.addSeries(HistogramSeries, {
-      priceFormat: { type: "volume" },
-      priceScaleId: "",
-    });
-    volumeSeries.priceScale().applyOptions({
-      scaleMargins: { top: 0.82, bottom: 0 },
-    });
-    volumeSeries.setData(
-      bars.map((b) => ({
-        time: b.time,
-        value: b.volume,
-        color:
-          b.close >= b.open
-            ? "rgba(16, 185, 129, 0.22)"
-            : "rgba(244, 63, 94, 0.22)",
-      }))
-    );
+    if (!isRate) {
+      const volumeSeries = chart.addSeries(HistogramSeries, {
+        priceFormat: { type: "volume" },
+        priceScaleId: "",
+      });
+      volumeSeries.priceScale().applyOptions({
+        scaleMargins: { top: 0.82, bottom: 0 },
+      });
+      volumeSeries.setData(
+        bars.map((b) => ({
+          time: b.time,
+          value: b.volume,
+          color:
+            b.close >= b.open
+              ? "rgba(16, 185, 129, 0.22)"
+              : "rgba(244, 63, 94, 0.22)",
+        }))
+      );
+    }
 
     if (sma20) {
       const s20 = chart.addSeries(LineSeries, {
@@ -236,7 +241,7 @@ export function ChartTab({ symbol, initialBars }: ChartTabProps) {
       ro.disconnect();
       chart.remove();
     };
-  }, [bars, sma20, sma50, sma200]);
+  }, [bars, sma20, sma50, sma200, isRate]);
 
   useEffect(() => {
     const el = oscContainerRef.current;
@@ -301,11 +306,14 @@ export function ChartTab({ symbol, initialBars }: ChartTabProps) {
 
   return (
     <div className="relative rounded-xl border border-white/[0.06] bg-[#11151E] p-6">
-      {/* Top-right Chart Controls inside the container */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="text-xs text-slate-400">
-          Price &amp; Volume{" "}
-          {loading && <span className="ml-2 text-slate-500">Updating...</span>}
+        <div className="flex items-center text-xs text-slate-400">
+          <span>{isRate ? t.chart.yieldHistory : t.chart.priceVolume}</span>
+          <TermHelp termKey="candlestick" />
+          {!isRate && <TermHelp termKey="volume" />}
+          {loading && (
+            <span className="ml-2 text-slate-500">{t.chart.updating}</span>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -333,7 +341,7 @@ export function ChartTab({ symbol, initialBars }: ChartTabProps) {
               className="inline-flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-[#0B0E14] px-2.5 py-1 text-xs text-slate-300 transition hover:text-white"
             >
               <SlidersHorizontal className="h-3.5 w-3.5 text-slate-400" />
-              Indicators
+              {t.chart.indicators}
               {activeIndCount > 0 && (
                 <span className="font-mono text-[11px] text-white">
                   ({activeIndCount})
@@ -342,23 +350,26 @@ export function ChartTab({ symbol, initialBars }: ChartTabProps) {
             </button>
 
             {indMenuOpen && (
-              <div className="absolute right-0 z-20 mt-2 w-52 rounded-xl border border-white/[0.08] bg-[#0B0E14] p-3 shadow-2xl">
+              <div className="absolute right-0 z-20 mt-2 w-60 rounded-xl border border-white/[0.08] bg-[#0B0E14] p-3 shadow-2xl">
                 <div className="mb-2 text-[11px] uppercase tracking-wider text-slate-500">
-                  Overlays
+                  {t.chart.overlays}
                 </div>
                 <div className="space-y-2 text-xs text-slate-300">
                   {[
-                    { label: "SMA 20", val: sma20, set: setSma20 },
-                    { label: "SMA 50", val: sma50, set: setSma50 },
-                    { label: "SMA 200", val: sma200, set: setSma200 },
-                    { label: "RSI (14)", val: showRsi, set: setShowRsi },
-                    { label: "MACD (12, 26, 9)", val: showMacd, set: setShowMacd },
+                    { label: "SMA 20", help: "sma", val: sma20, set: setSma20 },
+                    { label: "SMA 50", help: "sma", val: sma50, set: setSma50 },
+                    { label: "SMA 200", help: "sma", val: sma200, set: setSma200 },
+                    { label: "RSI (14)", help: "rsi14", val: showRsi, set: setShowRsi },
+                    { label: "MACD (12, 26, 9)", help: "macd", val: showMacd, set: setShowMacd },
                   ].map((item) => (
                     <label
                       key={item.label}
                       className="flex cursor-pointer items-center justify-between rounded px-1.5 py-1 hover:bg-white/[0.04]"
                     >
-                      <span>{item.label}</span>
+                      <span className="flex items-center">
+                        {item.label}
+                        <TermHelp termKey={item.help} />
+                      </span>
                       <input
                         type="checkbox"
                         checked={item.val}
@@ -378,9 +389,17 @@ export function ChartTab({ symbol, initialBars }: ChartTabProps) {
 
       {(showRsi || showMacd) && (
         <div className="mt-4 border-t border-white/[0.06] pt-3">
-          <div className="mb-1.5 font-mono text-[11px] text-slate-400">
-            {showRsi && "RSI(14) "}
-            {showMacd && "MACD(12,26,9)"}
+          <div className="mb-1.5 flex items-center gap-3 font-mono text-[11px] text-slate-400">
+            {showRsi && (
+              <span>
+                RSI(14) <TermHelp termKey="rsi14" />
+              </span>
+            )}
+            {showMacd && (
+              <span>
+                MACD(12,26,9) <TermHelp termKey="macd" />
+              </span>
+            )}
           </div>
           <div
             ref={oscContainerRef}

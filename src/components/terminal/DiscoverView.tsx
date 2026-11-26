@@ -10,9 +10,18 @@ import {
   SlidersHorizontal,
   X,
 } from "lucide-react";
+import { useLanguage } from "@/components/i18n/LanguageProvider";
 import { EChartsBox } from "@/components/terminal/EChartsBox";
+import { TermHelp } from "@/components/ui/TermHelp";
 import { formatPrice, formatSignedPct } from "@/lib/format";
-import { MacroIndicator, MarketHeadline, ScreenerRow } from "@/lib/types";
+import { BINANCE_STREAM_MAP } from "@/lib/seed/universe";
+import {
+  AssetClass,
+  MacroIndicator,
+  MarketHeadline,
+  ScreenerRow,
+  SovereignRatesSnapshot,
+} from "@/lib/types";
 
 interface DiscoverViewProps {
   initialRows: ScreenerRow[];
@@ -26,6 +35,7 @@ interface MacroPayload {
   };
   macroIndicators: MacroIndicator[];
   macroSource: string;
+  sovereignRates: SovereignRatesSnapshot;
   headlines: MarketHeadline[];
 }
 
@@ -35,24 +45,38 @@ type PresetId =
   | "seasonality_75"
   | "insider_buying";
 
+const ASSET_CLASS_TABS: Array<{ id: "all" | AssetClass; key: keyof ReturnType<typeof useLanguage>["t"]["assetClasses"] }> = [
+  { id: "all", key: "all" },
+  { id: "equity", key: "equity" },
+  { id: "etf", key: "etf" },
+  { id: "index", key: "index" },
+  { id: "fx", key: "fx" },
+  { id: "crypto", key: "crypto" },
+  { id: "commodity", key: "commodity" },
+  { id: "bond", key: "bond" },
+];
+
 export function DiscoverView({ initialRows }: DiscoverViewProps) {
   const router = useRouter();
+  const { t } = useLanguage();
+
   const [rows, setRows] = useState<ScreenerRow[]>(initialRows);
   const [preset, setPreset] = useState<PresetId>("all");
+  const [selectedClass, setSelectedClass] = useState<"all" | AssetClass>("all");
   const [loading, setLoading] = useState(false);
   const [showMore, setShowMore] = useState(false);
 
-  // Market Pulse + Collapsed Macro Section
   const [macro, setMacro] = useState<MacroPayload | null>(null);
-  const [btcTick, setBtcTick] = useState({ price: 94280.5, changePct: 1.99 });
+  const [liveCrypto, setLiveCrypto] = useState<
+    Record<string, { price: number; changePct: number }>
+  >({});
   const [macroOpen, setMacroOpen] = useState(false);
 
-  // Granular Filters Slide-Over Drawer (closed by default)
+  // Filters drawer (closed by default)
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [minUpside, setMinUpside] = useState(-50);
   const [minPiotroski, setMinPiotroski] = useState(0);
   const [minWinRate, setMinWinRate] = useState(0);
-  const [assetClass, setAssetClass] = useState("all");
   const [insiderBuyOnly, setInsiderBuyOnly] = useState(false);
 
   useEffect(() => {
@@ -62,21 +86,29 @@ export function DiscoverView({ initialRows }: DiscoverViewProps) {
       .catch(() => {});
   }, []);
 
-  // Client-side Binance WebSocket for live BTC pulse
+  // Multi-coin Binance WS stream (BTC, ETH, SOL, XRP, ADA, BNB)
   useEffect(() => {
     let ws: WebSocket | null = null;
     try {
-      ws = new WebSocket("wss://stream.binance.com:9443/ws/btcusdt@miniTicker");
+      ws = new WebSocket(
+        "wss://stream.binance.com:9443/stream?streams=btcusdt@miniTicker/ethusdt@miniTicker/solusdt@miniTicker/xrpusdt@miniTicker/adausdt@miniTicker/bnbusdt@miniTicker"
+      );
       ws.onmessage = (event) => {
         try {
-          const d = JSON.parse(event.data) as { c?: string; o?: string };
+          const msg = JSON.parse(event.data) as {
+            data?: { s?: string; c?: string; o?: string };
+          };
+          const d = msg.data;
+          if (!d?.s || !d.c || !d.o) return;
+          const mapped = BINANCE_STREAM_MAP[d.s];
           const close = Number(d.c);
           const open = Number(d.o);
-          if (close && open) {
-            setBtcTick({
-              price: close,
-              changePct: Number((((close - open) / open) * 100).toFixed(2)),
-            });
+          if (mapped && close && open) {
+            const changePct = Number((((close - open) / open) * 100).toFixed(2));
+            setLiveCrypto((prev) => ({
+              ...prev,
+              [mapped]: { price: close, changePct },
+            }));
           }
         } catch {
           // ignore
@@ -118,7 +150,7 @@ export function DiscoverView({ initialRows }: DiscoverViewProps) {
         minUpside: String(minUpside),
         minPiotroski: String(minPiotroski),
         minWinRate: String(minWinRate),
-        assetClass,
+        assetClass: selectedClass,
         insiderBuyOnly: String(insiderBuyOnly),
       });
       const res = await fetch(`/api/screener?${qs.toString()}`);
@@ -165,14 +197,14 @@ export function DiscoverView({ initialRows }: DiscoverViewProps) {
       },
       series: [
         {
-          name: "10Y Yield",
+          name: "10Y",
           type: "line",
           smooth: true,
           lineStyle: { width: 2, color: "#10B981" },
           data: d10?.history.map((h) => h.value) ?? [],
         },
         {
-          name: "2Y Yield",
+          name: "2Y",
           type: "line",
           smooth: true,
           lineStyle: { width: 1.8, color: "#94A3B8" },
@@ -182,18 +214,35 @@ export function DiscoverView({ initialRows }: DiscoverViewProps) {
     };
   }, [macro]);
 
+  const displayedRows = useMemo(() => {
+    const classFiltered =
+      selectedClass === "all"
+        ? rows
+        : rows.filter((r) => r.assetClass === selectedClass);
+    return classFiltered.map((r) => {
+      const tick = liveCrypto[r.symbol];
+      return tick
+        ? { ...r, price: tick.price, changePercent: tick.changePct }
+        : r;
+    });
+  }, [rows, selectedClass, liveCrypto]);
+
+  const visibleRows = showMore ? displayedRows : displayedRows.slice(0, 8);
+
   const sp = macro?.headerPills?.sp500 ?? { value: 5998.74, changePercent: 0.68 };
   const nq = macro?.headerPills?.nasdaq ?? { value: 19184.22, changePercent: 0.94 };
   const y10 = macro?.headerPills?.tenYearYield ?? { value: 4.24, change: -0.04 };
-
-  const visibleRows = showMore ? rows : rows.slice(0, 8);
+  const btc = liveCrypto["BTC-USD"] ?? { price: 94280.5, changePct: 1.99 };
 
   return (
     <div className="space-y-8">
       {/* 1. Compact 4-Item Market Pulse Row */}
       <div className="grid divide-y divide-white/[0.06] rounded-xl border border-white/[0.06] bg-[#11151E] sm:grid-cols-2 md:grid-cols-4 md:divide-x md:divide-y-0">
-        <div className="p-5">
-          <div className="text-xs text-slate-400">S&amp;P 500</div>
+        <div
+          onClick={() => router.push("/terminal/%5EGSPC")}
+          className="cursor-pointer p-5 transition hover:bg-white/[0.02]"
+        >
+          <div className="text-xs text-slate-400">{t.marketPulse.sp500}</div>
           <div className="mt-1.5 flex items-baseline gap-2.5 font-mono tabular-nums">
             <span className="text-lg font-semibold text-white">
               {sp.value.toLocaleString("en-US", { maximumFractionDigits: 0 })}
@@ -208,8 +257,11 @@ export function DiscoverView({ initialRows }: DiscoverViewProps) {
           </div>
         </div>
 
-        <div className="p-5">
-          <div className="text-xs text-slate-400">Nasdaq</div>
+        <div
+          onClick={() => router.push("/terminal/%5ENDX")}
+          className="cursor-pointer p-5 transition hover:bg-white/[0.02]"
+        >
+          <div className="text-xs text-slate-400">{t.marketPulse.nasdaq}</div>
           <div className="mt-1.5 flex items-baseline gap-2.5 font-mono tabular-nums">
             <span className="text-lg font-semibold text-white">
               {nq.value.toLocaleString("en-US", { maximumFractionDigits: 0 })}
@@ -224,8 +276,14 @@ export function DiscoverView({ initialRows }: DiscoverViewProps) {
           </div>
         </div>
 
-        <div className="p-5">
-          <div className="text-xs text-slate-400">10Y Treasury</div>
+        <div
+          onClick={() => router.push("/terminal/US10Y")}
+          className="cursor-pointer p-5 transition hover:bg-white/[0.02]"
+        >
+          <div className="flex items-center text-xs text-slate-400">
+            <span>{t.marketPulse.us10y}</span>
+            <TermHelp termKey="yieldCurve" />
+          </div>
           <div className="mt-1.5 flex items-baseline gap-2.5 font-mono tabular-nums">
             <span className="text-lg font-semibold text-white">
               {y10.value.toFixed(2)}%
@@ -235,33 +293,38 @@ export function DiscoverView({ initialRows }: DiscoverViewProps) {
                 y10.change >= 0 ? "text-[#10B981]" : "text-[#F43F5E]"
               }`}
             >
-              {y10.change > 0 ? `+${y10.change.toFixed(2)}` : y10.change.toFixed(2)}
+              {y10.change > 0
+                ? `+${y10.change.toFixed(2)}`
+                : y10.change.toFixed(2)}
             </span>
           </div>
         </div>
 
-        <div className="p-5">
-          <div className="text-xs text-slate-400">BTC</div>
+        <div
+          onClick={() => router.push("/terminal/BTC-USD")}
+          className="cursor-pointer p-5 transition hover:bg-white/[0.02]"
+        >
+          <div className="text-xs text-slate-400">{t.marketPulse.btc}</div>
           <div className="mt-1.5 flex items-baseline gap-2.5 font-mono tabular-nums">
             <span className="text-lg font-semibold text-white">
-              ${btcTick.price.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+              ${btc.price.toLocaleString("en-US", { maximumFractionDigits: 0 })}
             </span>
             <span
               className={`text-xs ${
-                btcTick.changePct >= 0 ? "text-[#10B981]" : "text-[#F43F5E]"
+                btc.changePct >= 0 ? "text-[#10B981]" : "text-[#F43F5E]"
               }`}
             >
-              {formatSignedPct(btcTick.changePct)}
+              {formatSignedPct(btc.changePct)}
             </span>
           </div>
         </div>
       </div>
 
-      {/* 2. Screener Header + 3 Preset Pills */}
+      {/* 2. Asset-Class Category Filter Pill Bar + Screener Presets */}
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <h1 className="text-xl font-semibold tracking-tight text-white">
-            Discover
+            {t.screener.title}
           </h1>
           <button
             type="button"
@@ -269,21 +332,43 @@ export function DiscoverView({ initialRows }: DiscoverViewProps) {
             className="inline-flex items-center gap-2 rounded-lg border border-white/[0.08] bg-[#11151E] px-3.5 py-2 text-xs font-medium text-slate-300 transition hover:text-white"
           >
             <SlidersHorizontal className="h-3.5 w-3.5 text-slate-400" />
-            Filters
+            {t.screener.filters}
           </button>
         </div>
 
+        {/* Asset-Class Filter Pills */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {ASSET_CLASS_TABS.map((cat) => (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => {
+                setSelectedClass(cat.id);
+                setShowMore(false);
+              }}
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                selectedClass === cat.id
+                  ? "bg-white/[0.14] text-white"
+                  : "text-slate-400 hover:bg-white/[0.04] hover:text-white"
+              }`}
+            >
+              {t.assetClasses[cat.key]}
+            </button>
+          ))}
+        </div>
+
+        {/* 3 Preset Pills */}
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => runPreset("all")}
             className={`rounded-full px-4 py-1.5 text-xs font-medium transition ${
               preset === "all"
-                ? "bg-white/[0.14] text-white"
+                ? "bg-white/[0.12] text-white"
                 : "border border-white/[0.06] bg-[#11151E] text-slate-400 hover:text-white"
             }`}
           >
-            All ({initialRows.length})
+            {t.presets.all} ({initialRows.length})
           </button>
 
           <button
@@ -295,7 +380,7 @@ export function DiscoverView({ initialRows }: DiscoverViewProps) {
                 : "border border-white/[0.06] bg-[#11151E] text-slate-400 hover:text-white"
             }`}
           >
-            Undervalued + High Quality
+            {t.presets.undervaluedQuality}
           </button>
 
           <button
@@ -307,7 +392,7 @@ export function DiscoverView({ initialRows }: DiscoverViewProps) {
                 : "border border-white/[0.06] bg-[#11151E] text-slate-400 hover:text-white"
             }`}
           >
-            &gt;75% Seasonal Win Rate
+            {t.presets.seasonality75}
           </button>
 
           <button
@@ -319,7 +404,7 @@ export function DiscoverView({ initialRows }: DiscoverViewProps) {
                 : "border border-white/[0.06] bg-[#11151E] text-slate-400 hover:text-white"
             }`}
           >
-            Recent Insider Buying
+            {t.presets.insiderBuying}
           </button>
         </div>
       </div>
@@ -330,18 +415,23 @@ export function DiscoverView({ initialRows }: DiscoverViewProps) {
           <table className="w-full border-collapse text-left text-sm">
             <thead>
               <tr className="border-b border-white/[0.06] text-xs text-slate-400">
-                <th className="px-6 py-3.5 font-medium">Ticker &amp; Name</th>
-                <th className="px-6 py-3.5 text-right font-mono font-medium">
-                  Price
+                <th className="px-6 py-3.5 font-medium">
+                  {t.screener.colTicker}
                 </th>
                 <th className="px-6 py-3.5 text-right font-mono font-medium">
-                  Fair Value Upside
+                  {t.screener.colPrice}
                 </th>
                 <th className="px-6 py-3.5 text-right font-mono font-medium">
-                  30D Seasonality
+                  {t.screener.colFairValue}
+                  <TermHelp termKey="fairValue" />
+                </th>
+                <th className="px-6 py-3.5 text-right font-mono font-medium">
+                  {t.screener.colSeasonality}
+                  <TermHelp termKey="winRate" />
                 </th>
                 <th className="px-6 py-3.5 text-right font-medium">
-                  Smart Money
+                  {t.screener.colSmartMoney}
+                  <TermHelp termKey="cftcCot" />
                 </th>
               </tr>
             </thead>
@@ -352,7 +442,7 @@ export function DiscoverView({ initialRows }: DiscoverViewProps) {
                     colSpan={5}
                     className="px-6 py-10 text-center text-sm text-slate-400"
                   >
-                    Screening universe...
+                    {t.screener.screening}
                   </td>
                 </tr>
               ) : visibleRows.length === 0 ? (
@@ -361,7 +451,7 @@ export function DiscoverView({ initialRows }: DiscoverViewProps) {
                     colSpan={5}
                     className="px-6 py-10 text-center text-sm text-slate-400"
                   >
-                    No assets match the current filter criteria.
+                    {t.screener.noMatches}
                   </td>
                 </tr>
               ) : (
@@ -384,8 +474,21 @@ export function DiscoverView({ initialRows }: DiscoverViewProps) {
 
                     <td className="px-6 py-3 text-right font-mono tabular-nums">
                       <span className="text-white">
-                        {r.assetClass === "fx" ? "" : "$"}
-                        {formatPrice(r.price, r.symbol)}
+                        {r.assetClass === "fx" ||
+                        r.assetClass === "bond" ||
+                        r.assetClass === "index"
+                          ? ""
+                          : "$"}
+                        {r.assetClass === "bond"
+                          ? r.symbol === "BTPBUND"
+                            ? r.price.toFixed(0)
+                            : r.price.toFixed(2)
+                          : formatPrice(r.price, r.symbol)}
+                        {r.symbol === "BTPBUND"
+                          ? " bps"
+                          : r.assetClass === "bond"
+                            ? "%"
+                            : ""}
                       </span>
                       <span
                         className={`ml-2 text-xs ${
@@ -410,7 +513,9 @@ export function DiscoverView({ initialRows }: DiscoverViewProps) {
                           {formatSignedPct(r.fairValueUpside)}
                         </span>
                       ) : (
-                        <span className="text-xs text-slate-500">Spot</span>
+                        <span className="text-xs text-slate-500">
+                          {t.assetClasses[r.assetClass]}
+                        </span>
                       )}
                     </td>
 
@@ -447,7 +552,7 @@ export function DiscoverView({ initialRows }: DiscoverViewProps) {
           </table>
         </div>
 
-        {rows.length > 8 && (
+        {displayedRows.length > 8 && (
           <div className="border-t border-white/[0.06] px-6 py-3">
             <button
               type="button"
@@ -455,42 +560,67 @@ export function DiscoverView({ initialRows }: DiscoverViewProps) {
               className="text-xs text-slate-400 hover:text-white"
             >
               {showMore
-                ? "Show fewer"
-                : `Show more (${rows.length - 8} more)`}
+                ? t.screener.showFewer
+                : `${t.screener.showMore} (${displayedRows.length - 8})`}
             </button>
           </div>
         )}
       </div>
 
-      {/* 4. Collapsed "Macro & Market Headlines" Section */}
+      {/* 4. Collapsed "Macro, Sovereign Yields & Headlines" Section */}
       <div className="rounded-xl border border-white/[0.06] bg-[#11151E]">
-        <button
-          type="button"
-          onClick={() => setMacroOpen((v) => !v)}
-          className="flex w-full items-center justify-between px-6 py-4 text-left transition hover:bg-white/[0.02]"
-        >
-          <span className="text-sm font-medium text-white">
-            Macro &amp; Market Headlines
-          </span>
-          {macroOpen ? (
-            <ChevronUp className="h-4 w-4 text-slate-400" />
-          ) : (
-            <ChevronDown className="h-4 w-4 text-slate-400" />
-          )}
-        </button>
+        <div className="flex w-full items-center justify-between px-6 py-4">
+          <div className="flex items-center">
+            <button
+              type="button"
+              onClick={() => setMacroOpen((v) => !v)}
+              className="text-left text-sm font-medium text-white transition hover:opacity-85"
+            >
+              {t.screener.macroHeadlinesTitle}
+            </button>
+            <TermHelp termKey="yieldCurve" />
+          </div>
+          <button
+            type="button"
+            aria-label={t.screener.macroHeadlinesTitle}
+            onClick={() => setMacroOpen((v) => !v)}
+            className="rounded p-1 text-slate-400 transition hover:text-white"
+          >
+            {macroOpen ? (
+              <ChevronUp className="h-4 w-4" />
+            ) : (
+              <ChevronDown className="h-4 w-4" />
+            )}
+          </button>
+        </div>
 
         {macroOpen && macro && (
           <div className="space-y-8 border-t border-white/[0.06] p-6">
             <div className="grid gap-8 lg:grid-cols-3">
               <div className="lg:col-span-2">
                 <div className="mb-3 text-xs text-slate-400">
-                  US Treasury 10Y vs 2Y Trajectory (FRED · {macro.macroSource})
+                  {t.screener.yieldTrajectory} ({macro.macroSource})
                 </div>
                 <EChartsBox option={yieldOption} height={220} />
               </div>
 
               <div className="divide-y divide-white/[0.06]">
-                {macro.macroIndicators.map((m) => (
+                {macro.sovereignRates?.euBenchmarks.map((b) => (
+                  <div
+                    key={b.id}
+                    className="flex items-center justify-between py-2.5 text-xs"
+                  >
+                    <span className="text-slate-300">
+                      {b.label}
+                      {b.id === "BTPBUND" && <TermHelp termKey="btpBundSpread" />}
+                    </span>
+                    <span className="font-mono font-medium tabular-nums text-white">
+                      {b.unit === "bps" ? b.value.toFixed(0) : b.value.toFixed(2)}
+                      {b.unit === "bps" ? " bps" : "%"}
+                    </span>
+                  </div>
+                ))}
+                {macro.macroIndicators.slice(0, 3).map((m) => (
                   <div
                     key={m.id}
                     className="flex items-center justify-between py-2.5 text-xs"
@@ -528,7 +658,7 @@ export function DiscoverView({ initialRows }: DiscoverViewProps) {
         )}
       </div>
 
-      {/* Granular Filters Slide-Over Drawer */}
+      {/* Filters Slide-Over Drawer */}
       {filtersOpen && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm">
           <form
@@ -537,7 +667,7 @@ export function DiscoverView({ initialRows }: DiscoverViewProps) {
           >
             <div className="flex items-center justify-between border-b border-white/[0.06] pb-4">
               <h2 className="text-sm font-semibold text-white">
-                Screener Filters
+                {t.screener.filters}
               </h2>
               <button
                 type="button"
@@ -551,24 +681,26 @@ export function DiscoverView({ initialRows }: DiscoverViewProps) {
             <div className="mt-6 flex-1 space-y-5 text-xs">
               <div>
                 <label className="mb-1.5 block text-slate-300">
-                  Asset Class
+                  {t.screener.assetClassLabel}
                 </label>
                 <select
-                  value={assetClass}
-                  onChange={(e) => setAssetClass(e.target.value)}
+                  value={selectedClass}
+                  onChange={(e) =>
+                    setSelectedClass(e.target.value as "all" | AssetClass)
+                  }
                   className="w-full rounded-lg border border-white/[0.08] bg-[#11151E] px-3 py-2 text-white outline-none"
                 >
-                  <option value="all">All Asset Classes</option>
-                  <option value="equity">Equities</option>
-                  <option value="fx">Foreign Exchange</option>
-                  <option value="crypto">Digital Assets</option>
-                  <option value="commodity">Commodities</option>
+                  {ASSET_CLASS_TABS.map((cat) => (
+                    <option key={cat.id} value={cat.id}>
+                      {t.assetClasses[cat.key]}
+                    </option>
+                  ))}
                 </select>
               </div>
 
               <div>
                 <div className="mb-1.5 flex justify-between text-slate-300">
-                  <span>Min Fair Value Upside</span>
+                  <span>{t.screener.minUpside}</span>
                   <span className="font-mono text-white">{minUpside}%</span>
                 </div>
                 <input
@@ -583,7 +715,7 @@ export function DiscoverView({ initialRows }: DiscoverViewProps) {
 
               <div>
                 <div className="mb-1.5 flex justify-between text-slate-300">
-                  <span>Min Piotroski F-Score</span>
+                  <span>{t.screener.minPiotroski}</span>
                   <span className="font-mono text-white">{minPiotroski}/9</span>
                 </div>
                 <input
@@ -598,7 +730,7 @@ export function DiscoverView({ initialRows }: DiscoverViewProps) {
 
               <div>
                 <div className="mb-1.5 flex justify-between text-slate-300">
-                  <span>Min 30D Seasonality Win Rate</span>
+                  <span>{t.screener.minWinRate}</span>
                   <span className="font-mono text-white">{minWinRate}%</span>
                 </div>
                 <input
@@ -618,7 +750,7 @@ export function DiscoverView({ initialRows }: DiscoverViewProps) {
                   onChange={(e) => setInsiderBuyOnly(e.target.checked)}
                   className="h-4 w-4 accent-[#3B82F6]"
                 />
-                Require recent Form 4 insider buys
+                {t.screener.requireInsider}
               </label>
             </div>
 
@@ -629,18 +761,18 @@ export function DiscoverView({ initialRows }: DiscoverViewProps) {
                   setMinUpside(-50);
                   setMinPiotroski(0);
                   setMinWinRate(0);
-                  setAssetClass("all");
+                  setSelectedClass("all");
                   setInsiderBuyOnly(false);
                 }}
                 className="flex-1 rounded-lg border border-white/[0.08] py-2 text-xs text-slate-300 hover:text-white"
               >
-                Reset
+                {t.screener.reset}
               </button>
               <button
                 type="submit"
                 className="flex-1 rounded-lg bg-[#3B82F6] py-2 text-xs font-medium text-white hover:bg-[#2563EB]"
               >
-                Apply Filters
+                {t.screener.apply}
               </button>
             </div>
           </form>

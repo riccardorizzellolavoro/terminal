@@ -1,12 +1,13 @@
 {
-  "name": "openforecaster",
-  "version": "0.1.0",
+  "name": "openterminal",
+  "version": "1.0.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "portable": "node scripts/portable.mjs"
   },
   "dependencies": {
     "@types/better-sqlite3": "^9.6.0",

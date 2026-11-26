@@ -1,28 +1,31 @@
-# OpenForecaster
+# OpenTerminal
 
-Local-first institutional financial research terminal and SaaS funnel built with Next.js (App Router), TypeScript, Tailwind CSS, TradingView `lightweight-charts`, Apache `echarts`, `yahoo-finance2`, and `better-sqlite3`.
+100% local-first, portable institutional financial research application with zero accounts, zero logins, and zero subscriptions.
 
 ## Features
 
-- **Zero-Subscription Data Layer:**
-  - **Equities & Options:** `yahoo-finance2` (30s cache TTL)
-  - **Fundamentals & Filings:** Official SEC EDGAR API with compliant `User-Agent`, 8 req/sec token-bucket rate limiting, 24h caching, standalone Q4 derivation (`FY - (Q1 + Q2 + Q3)`), and `Free Cash Flow = OCF - CapEx`
-  - **Macro & Treasury Yields:** Public FRED CSV endpoints (`DGS10`, `DGS2`, `FEDFUNDS`, `CPIAUCSL`, `UNRATE`, 1h cache TTL)
-  - **Real-Time Crypto Ticks:** Client-side Binance WebSocket (`BTC`, `ETH`, `SOL`)
-  - **Local Persistence & Seed Layer:** SQLite at `./data/cache.db` + deterministic 30-year OHLCV, COT, Form 4, Congressional trades, and indexed transcripts/10-K chunks
-- **Landing Funnel (`/`):** Announcement bar webinar modal, `"A NEW WORLD"` Keynote hero with `.ics` calendar export, interactive feature previews, and Monthly/Annual pricing.
-- **Terminal Workspace (`/terminal/[ticker]`):**
-  - Command Bar (`/`, `Cmd+K`, `Esc`) supporting `[TICKER]` and `[TICKER] [FUNCTION]` mnemonics (e.g., `NVDA FA`, `TSLA OMON`, `AAPL VAL`, `MSFT SEAS`, `WEI`)
-  - Tabs (`1–8`): `Overview (DES)`, `Chart (GP)`, `Financials (FA)`, `Valuation (VAL)`, `Seasonality (SEAS)`, `Options (OMON)`, `Smart Money (COT)`, `Macro & News (WEI)`
-  - Optional `1×2` split-screen workspace with link groups (`Group A`, `Group B`, `None`)
-  - Citation-locked AI Analyst drawer (`Cmd+J` / `Ctrl+I`) supporting local RAG, Ollama, OpenAI-compatible, and Anthropic BYOK
-- **Multi-Asset Discovery Screener (`/terminal/screener`):** One-click preset pills and granular slide-over filters.
+- **Every Major Asset Class:**
+  - **Equities:** US & European stocks (`AAPL`, `NVDA`, `MSFT`, `TSLA`, `ENI.MI`, `RACE.MI`, `UCG.MI`, `SAP.DE`, `ASML.AS`, and more)
+  - **ETFs & Funds:** `SPY`, `QQQ`, `IWDA.AS`, `VWCE.DE`, `TLT`, `HYG`, `LQD`, `GLD`, `VNQ`, `SHY`, `IEF`
+  - **Global Indices:** `^GSPC`, `^NDX`, `^DJI`, `FTSEMIB.MI`, `^STOXX50E`, `^GDAXI`, `^N225`, `^VIX`
+  - **Forex:** `EURUSD=X`, `USDJPY=X`, `GBPUSD=X`, `USDCHF=X`, `EURCHF=X`, `EURGBP=X`, `DX-Y.NYB`
+  - **Crypto:** `BTC-USD`, `ETH-USD`, `SOL-USD`, `XRP-USD`, `ADA-USD`, `BNB-USD` with live Binance WebSocket ticks
+  - **Commodities & Futures:** `GC=F`, `SI=F`, `CL=F`, `BZ=F`, `NG=F`, `HG=F`, `ZC=F`, `ZW=F` with CFTC COT positioning
+  - **Bonds & Sovereign Rates:** US Treasury curve (`US2Y`, `US5Y`, `US10Y`, `US30Y`), European benchmarks (`BTP10Y`, `BUND10Y`, `BTPBUND`, `ECBRATE`, `FEDFUNDS`)
+  - **Options & Greeks:** Side-by-side Calls/Puts chain (`±5` strikes default) with Black-Scholes `Delta`, `Gamma`, `Theta`, `Vega`
+- **Inline `(?)` Beginner Help System:** Plain-English and plain-Italian 3-line explanations beside every financial, statistical, and trading term.
+- **Full `EN | IT` Language Switcher:** Instant switching persisted in SQLite (`./data/cache.db`) and `localStorage`, including bilingual glossary tooltips and Italian AI Analyst responses.
+- **Zero-Subscription Data Layer:** `yahoo-finance2`, SEC EDGAR (`OpenTerminal/1.0`), FRED public CSVs, Binance WebSocket, and deterministic local seed fallback.
 
-## Getting Started
+## Portable Quick Start
 
 ```bash
 npm install
-npm run dev
+npm run portable
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+Or run in development mode:
+
+```bash
+npm run dev
+```
