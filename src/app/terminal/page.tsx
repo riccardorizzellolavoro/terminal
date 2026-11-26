@@ -1,5 +1,17 @@
-import { redirect } from "next/navigation";
+import { DiscoverView } from "@/components/terminal/DiscoverView";
+import { TerminalShell } from "@/components/terminal/TerminalShell";
+import { loadScreenerUniverse } from "@/lib/services/ticker-service";
 
-export default function TerminalIndexPage() {
-  redirect("/terminal/AAPL");
+export const dynamic = "force-dynamic";
+
+export default async function TerminalDiscoverPage() {
+  const rows = await loadScreenerUniverse();
+
+  return (
+    <TerminalShell
+      primarySymbol="AAPL"
+      mode="discover"
+      discoverContent={<DiscoverView initialRows={rows} />}
+    />
+  );
 }

@@ -8,14 +8,10 @@ import {
   Calendar,
   Check,
   Download,
-  HelpCircle,
-  Play,
-  Sparkles,
-  TrendingUp,
   X,
 } from "lucide-react";
 
-type ModalKind = null | "webinar" | "keynote" | "trial" | "signin" | "support";
+type ModalKind = null | "webinar" | "keynote" | "signin";
 
 function buildKeynoteIcs(): string {
   return [
@@ -74,7 +70,6 @@ export function OrbitLogo({ className = "h-7 w-7" }: { className?: string }) {
         strokeWidth="1.6"
       />
       <circle cx="16" cy="16" r="3.4" fill="#F8FAFC" />
-      <circle cx="26.2" cy="10.4" r="1.8" fill="#10B981" />
     </svg>
   );
 }
@@ -85,12 +80,6 @@ export function LandingClient() {
   const [activeModal, setActiveModal] = useState<ModalKind>(null);
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("annual");
 
-  // Interactive preview card state
-  const [selectedValTicker, setSelectedValTicker] = useState<"AAPL" | "NVDA" | "MSFT">("AAPL");
-  const [selectedSeasSpan, setSelectedSeasSpan] = useState<"10Y" | "20Y" | "30Y">("30Y");
-  const [selectedAiChip, setSelectedAiChip] = useState<0 | 1 | 2>(0);
-
-  // Modal form state
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -113,9 +102,7 @@ export function LandingClient() {
           ? "webinar"
           : activeModal === "keynote"
             ? "keynote"
-            : activeModal === "signin"
-              ? "signin"
-              : "trial";
+            : "signin";
       const res = await fetch("/api/funnel", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -132,7 +119,7 @@ export function LandingClient() {
         return;
       }
 
-      if (activeModal === "trial" || activeModal === "signin") {
+      if (activeModal === "signin") {
         router.push("/terminal/AAPL");
         return;
       }
@@ -140,7 +127,7 @@ export function LandingClient() {
       setSubmittedMsg(
         activeModal === "keynote"
           ? "Seat confirmed for December 16, 2026 (11:00 CET). Download your calendar invite below."
-          : "Spot reserved for the Dec 2, 2026 Market Webinar. Calendar details saved locally."
+          : "Spot reserved for the Dec 2, 2026 Market Webinar."
       );
     } catch {
       setFormError("Unable to submit right now.");
@@ -149,87 +136,50 @@ export function LandingClient() {
     }
   };
 
-  const previewValuations = {
-    AAPL: { price: "$234.82", fair: "$268.40", delta: "+14.3%", fScore: "8/9" },
-    NVDA: { price: "$141.65", fair: "$174.90", delta: "+23.5%", fScore: "8/9" },
-    MSFT: { price: "$428.40", fair: "$479.10", delta: "+11.8%", fScore: "9/9" },
-  }[selectedValTicker];
-
-  const previewSeasonality = {
-    "10Y": { winRate: "80.0%", avg: "+4.82%", path: "M 0 66 C 35 60, 70 46, 110 40 C 155 32, 195 18, 240 12" },
-    "20Y": { winRate: "75.0%", avg: "+4.15%", path: "M 0 68 C 40 58, 75 50, 115 44 C 160 36, 200 24, 240 18" },
-    "30Y": { winRate: "76.7%", avg: "+4.46%", path: "M 0 67 C 38 62, 80 48, 120 42 C 165 34, 202 22, 240 15" },
-  }[selectedSeasSpan];
-
-  const previewAiResponses = [
-    {
-      chip: "Scan latest earnings call for red flags",
-      quote: "Greater China revenue declined 2.8% YoY to $14.3B on local flagship competition.",
-      badge: "[Transcript Q3 '26, ¶22]",
-    },
-    {
-      chip: "Compare Q3 vs Q4 management tone",
-      quote: "Management shifted from cautious Q3 supply commentary to 6%–8% Q4 revenue guidance.",
-      badge: "[Transcript Q4 '26, ¶08]",
-    },
-    {
-      chip: "Summarize guidance & capex changes",
-      quote: "CapEx rose 18% sequentially to $3.1B for Private Cloud Compute; FY FCF reached $113.8B.",
-      badge: "[Transcript Q4 '26, ¶19]",
-    },
-  ];
-
   return (
     <div className="min-h-screen bg-[#0B0E14] text-slate-100">
-      {/* 1. Single Slim Top Announcement Bar (h-10) */}
+      {/* 1. Slim Dismissible Top Bar */}
       {bannerVisible && (
-        <div className="relative z-40 flex h-10 items-center justify-center border-b border-white/[0.08] bg-[#0F131C] px-10 text-xs text-slate-300">
+        <div className="relative z-40 flex h-10 items-center justify-center border-b border-white/[0.06] bg-[#11151E] px-10 text-xs text-slate-300">
           <button
             type="button"
             onClick={() => openModal("webinar")}
             className="inline-flex items-center gap-2 transition hover:text-white"
           >
-            <span className="h-1.5 w-1.5 rounded-full bg-[#10B981]" />
             <span>
               Free Weekly Market Webinar — Dec 2, 2026 ·{" "}
-              <span className="font-medium text-[#3B82F6]">Reserve a spot →</span>
+              <span className="font-medium text-white underline underline-offset-4">
+                Reserve a spot →
+              </span>
             </span>
           </button>
           <button
             type="button"
             aria-label="Dismiss announcement"
             onClick={() => setBannerVisible(false)}
-            className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 transition hover:bg-white/[0.06] hover:text-white"
+            className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1 text-slate-400 transition hover:text-white"
           >
             <X className="h-3.5 w-3.5" />
           </button>
         </div>
       )}
 
-      {/* 2. Minimal Sticky Navbar */}
-      <header className="sticky top-0 z-30 border-b border-white/[0.08] bg-[#07090E]/85 backdrop-blur-md">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-          <Link href="/" className="flex items-center gap-3">
-            <OrbitLogo className="h-7 w-7" />
-            <div className="leading-tight">
-              <div className="text-sm font-semibold tracking-tight text-white">
-                OpenForecaster
-              </div>
-              <div className="text-[11px] text-slate-400">
-                Local-First Quant &amp; Terminal
-              </div>
-            </div>
+      {/* 2. Minimal Navbar: 4 items (Logo, Features, Pricing, Open Terminal CTA + subtle Sign In) */}
+      <header className="sticky top-0 z-30 border-b border-white/[0.06] bg-[#0B0E14]/90 backdrop-blur-md">
+        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6">
+          <Link href="/" className="flex items-center gap-2.5">
+            <OrbitLogo className="h-6 w-6" />
+            <span className="text-sm font-semibold tracking-tight text-white">
+              OpenForecaster
+            </span>
           </Link>
 
-          <nav className="hidden items-center gap-8 text-sm text-slate-300 md:flex">
+          <nav className="hidden items-center gap-8 text-sm text-slate-400 md:flex">
             <a href="#features" className="transition hover:text-white">
               Features
             </a>
             <a href="#pricing" className="transition hover:text-white">
               Pricing
-            </a>
-            <a href="#tutorials" className="transition hover:text-white">
-              Tutorials
             </a>
           </nav>
 
@@ -237,42 +187,34 @@ export function LandingClient() {
             <button
               type="button"
               onClick={() => openModal("signin")}
-              className="text-sm text-slate-300 transition hover:text-white"
+              className="text-sm text-slate-400 transition hover:text-white"
             >
               Sign In
             </button>
-            <button
-              type="button"
-              onClick={() => openModal("trial")}
+            <Link
+              href="/terminal"
               className="rounded-lg bg-[#3B82F6] px-4 py-2 text-sm font-medium text-white transition hover:bg-[#2563EB]"
             >
-              Start 7-Day Free Trial
-            </button>
+              Open Terminal
+            </Link>
           </div>
         </div>
       </header>
 
-      {/* 3. Focused Hero Section (#07090E Deep Space Theme) */}
-      <section className="relative overflow-hidden border-b border-white/[0.08] bg-[#07090E]">
-        <div className="relative mx-auto min-h-[580px] max-w-7xl px-6 py-20 lg:flex lg:items-center lg:justify-end lg:py-28">
-          {/* Left-anchored astronaut backdrop */}
+      {/* 3. Deep Space Hero Section */}
+      <section className="relative overflow-hidden border-b border-white/[0.06] bg-[#07090E]">
+        <div className="relative mx-auto min-h-[560px] max-w-6xl px-6 py-24 lg:flex lg:items-center lg:justify-end lg:py-32">
           <div className="pointer-events-none absolute inset-0">
             <img
               src="/images/astronaut-hero.jpg"
               alt="Astronaut looking upward with geometric Earth reflection"
               className="h-full w-full object-cover object-left opacity-85"
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-[#07090E]/15 via-[#07090E]/55 to-[#07090E]" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[#07090E]/15 via-[#07090E]/60 to-[#07090E]" />
             <div className="absolute inset-0 bg-gradient-to-t from-[#07090E] via-transparent to-[#07090E]/30" />
           </div>
 
-          {/* Right-aligned bold white headline & CTAs */}
-          <div className="relative z-10 max-w-xl text-left lg:text-right">
-            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/[0.08] bg-[#12161F]/80 px-3.5 py-1 text-xs text-slate-300">
-              <span className="h-1.5 w-1.5 rounded-full bg-[#3B82F6]" />
-              Local-First Institutional Research
-            </div>
-
+          <div className="relative z-10 max-w-lg text-left lg:text-right">
             <h1 className="text-4xl font-semibold tracking-tight text-white sm:text-6xl">
               A NEW WORLD
             </h1>
@@ -286,14 +228,14 @@ export function LandingClient() {
               <button
                 type="button"
                 onClick={() => openModal("keynote")}
-                className="inline-flex items-center gap-2 rounded-lg bg-[#3B82F6] px-6 py-3 text-sm font-medium text-white shadow-lg shadow-[#3B82F6]/20 transition hover:bg-[#2563EB]"
+                className="inline-flex items-center gap-2 rounded-lg bg-[#3B82F6] px-6 py-3 text-sm font-medium text-white transition hover:bg-[#2563EB]"
               >
                 <Calendar className="h-4 w-4" />
-                Register for the Keynote
+                Register for Keynote
               </button>
               <Link
                 href="/terminal/AAPL"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.12] bg-[#12161F]/80 px-5 py-3 text-sm font-medium text-slate-200 transition hover:border-white/25 hover:text-white"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-white/[0.1] bg-[#11151E] px-5 py-3 text-sm font-medium text-slate-200 transition hover:border-white/25 hover:text-white"
               >
                 Launch Terminal
                 <ArrowRight className="h-4 w-4" />
@@ -303,361 +245,263 @@ export function LandingClient() {
         </div>
       </section>
 
-      {/* 4. Below-the-Fold 3 Interactive Preview Cards */}
-      <section id="features" className="mx-auto max-w-7xl px-6 py-20">
-        <div className="mb-12 max-w-2xl">
-          <h2 className="text-2xl font-semibold tracking-tight text-white">
-            Institutional clarity without the clutter
+      {/* 4. Below the Fold: 3 Spacious Alternating Feature Rows */}
+      <section id="features" className="mx-auto max-w-6xl space-y-20 px-6 py-24">
+        <div className="max-w-xl">
+          <h2 className="text-2xl font-semibold tracking-tight text-white sm:text-3xl">
+            Calm, verifiable financial research
           </h2>
-          <p className="mt-2 text-sm text-slate-400">
-            Zero API keys required. Live SEC EDGAR, FRED yields, Yahoo Finance
-            chains, and deterministic quant models cached locally in SQLite.
+          <p className="mt-3 text-sm leading-relaxed text-slate-400">
+            Zero external API keys required. Live SEC EDGAR filings, FRED yields,
+            and Yahoo options chains are normalized locally in SQLite.
           </p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-3">
-          {/* Card 1: Fair Value in Seconds */}
-          <div className="flex flex-col justify-between rounded-xl border border-white/[0.08] bg-[#12161F] p-6">
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium uppercase tracking-wider text-slate-400">
-                  1. Fair Value in Seconds
-                </span>
-                <div className="flex gap-1">
-                  {(["AAPL", "NVDA", "MSFT"] as const).map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => setSelectedValTicker(t)}
-                      className={`rounded px-2 py-0.5 font-mono text-[11px] transition ${
-                        selectedValTicker === t
-                          ? "bg-[#3B82F6] text-white"
-                          : "bg-white/[0.04] text-slate-400 hover:text-white"
-                      }`}
-                    >
-                      {t}
-                    </button>
-                  ))}
+        {/* Row 1: Composite Fair Value (Visual Left, Text Right) */}
+        <div className="grid items-center gap-12 md:grid-cols-2">
+          <div className="rounded-xl border border-white/[0.06] bg-[#11151E] p-6">
+            <div className="flex items-baseline justify-between border-b border-white/[0.06] pb-4">
+              <div>
+                <div className="text-xs text-slate-400">
+                  CRM · Composite Fair Value
+                </div>
+                <div className="mt-1 font-mono text-2xl font-semibold tabular-nums text-white">
+                  $334.47
                 </div>
               </div>
-
-              <div className="mt-6 flex items-baseline justify-between">
-                <div>
-                  <div className="font-mono text-2xl font-semibold tabular-nums text-white">
-                    {previewValuations.fair}
-                  </div>
-                  <div className="mt-1 text-xs text-slate-400">
-                    Composite Target vs{" "}
-                    <span className="font-mono tabular-nums text-slate-200">
-                      {previewValuations.price}
-                    </span>
-                  </div>
-                </div>
-                <span className="rounded-md bg-[#10B981]/15 px-2.5 py-1 font-mono text-xs font-medium tabular-nums text-[#10B981]">
-                  {previewValuations.delta} Upside
-                </span>
+              <span className="font-mono text-sm font-medium tabular-nums text-[#10B981]">
+                +69.6% Upside
+              </span>
+            </div>
+            <div className="mt-4 space-y-3 text-sm">
+              <div className="flex justify-between text-slate-300">
+                <span>Discounted Cash Flow (DCF)</span>
+                <span className="font-mono tabular-nums text-white">$348.20</span>
               </div>
-
-              <div className="mt-5 h-2 w-full overflow-hidden rounded-full bg-white/[0.06]">
-                <div className="h-full w-3/4 rounded-full bg-gradient-to-r from-[#3B82F6] to-[#10B981]" />
+              <div className="flex justify-between text-slate-300">
+                <span>Peter Lynch Fair Value</span>
+                <span className="font-mono tabular-nums text-white">$321.10</span>
               </div>
-              <div className="mt-2 flex justify-between text-[11px] text-slate-400">
-                <span>DCF · EVA · Lynch</span>
-                <span className="font-mono tabular-nums text-slate-300">
-                  Piotroski {previewValuations.fScore}
-                </span>
+              <div className="flex justify-between text-slate-400">
+                <span>Piotroski F-Score</span>
+                <span className="font-mono tabular-nums text-slate-200">7 / 9</span>
               </div>
             </div>
-
-            <p className="mt-6 border-t border-white/[0.06] pt-4 text-sm text-slate-400">
-              Blend DCF, EVA, and Peter Lynch formulas with SEC XBRL Q4
-              normalization in one click.
-            </p>
           </div>
 
-          {/* Card 2: 30-Year Seasonality */}
-          <div className="flex flex-col justify-between rounded-xl border border-white/[0.08] bg-[#12161F] p-6">
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium uppercase tracking-wider text-slate-400">
-                  2. 30-Year Seasonality
-                </span>
-                <div className="flex gap-1">
-                  {(["10Y", "20Y", "30Y"] as const).map((span) => (
-                    <button
-                      key={span}
-                      type="button"
-                      onClick={() => setSelectedSeasSpan(span)}
-                      className={`rounded px-2 py-0.5 font-mono text-[11px] transition ${
-                        selectedSeasSpan === span
-                          ? "bg-[#3B82F6] text-white"
-                          : "bg-white/[0.04] text-slate-400 hover:text-white"
-                      }`}
-                    >
-                      {span}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="mt-6 flex items-baseline justify-between">
-                <div className="font-mono text-2xl font-semibold tabular-nums text-white">
-                  {previewSeasonality.winRate} Win Rate
-                </div>
-                <span className="font-mono text-xs font-medium tabular-nums text-[#10B981]">
-                  {previewSeasonality.avg} Avg
-                </span>
-              </div>
-
-              <svg
-                viewBox="0 0 240 80"
-                className="mt-4 h-16 w-full"
-                aria-hidden="true"
-              >
-                <line
-                  x1="0"
-                  y1="66"
-                  x2="240"
-                  y2="66"
-                  stroke="rgba(255,255,255,0.08)"
-                  strokeDasharray="3 3"
-                />
-                <path
-                  d={previewSeasonality.path}
-                  fill="none"
-                  stroke="#10B981"
-                  strokeWidth="2.2"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </div>
-
-            <p className="mt-6 border-t border-white/[0.06] pt-4 text-sm text-slate-400">
-              Drag-select any calendar window across 10, 20, or 30 detrended
-              years of daily market history.
-            </p>
-          </div>
-
-          {/* Card 3: Citation-Backed AI Analyst */}
-          <div className="flex flex-col justify-between rounded-xl border border-white/[0.08] bg-[#12161F] p-6">
-            <div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-medium uppercase tracking-wider text-slate-400">
-                  3. Citation-Backed AI Analyst
-                </span>
-                <Sparkles className="h-4 w-4 text-[#3B82F6]" />
-              </div>
-
-              <div className="mt-4 flex flex-wrap gap-1.5">
-                {previewAiResponses.map((item, idx) => (
-                  <button
-                    key={item.chip}
-                    type="button"
-                    onClick={() => setSelectedAiChip(idx as 0 | 1 | 2)}
-                    className={`rounded-md px-2.5 py-1 text-left text-[11px] transition ${
-                      selectedAiChip === idx
-                        ? "bg-[#3B82F6]/20 text-[#93C5FD]"
-                        : "bg-white/[0.04] text-slate-400 hover:text-slate-200"
-                    }`}
-                  >
-                    {item.chip}
-                  </button>
-                ))}
-              </div>
-
-              <div className="mt-4 rounded-lg bg-[#0B0E14] p-3.5 text-xs leading-relaxed text-slate-300">
-                {previewAiResponses[selectedAiChip].quote}{" "}
-                <span className="ml-1 inline-block rounded bg-[#3B82F6]/15 px-1.5 py-0.5 font-mono text-[10px] text-[#60A5FA]">
-                  {previewAiResponses[selectedAiChip].badge}
-                </span>
-              </div>
-            </div>
-
-            <p className="mt-6 border-t border-white/[0.06] pt-4 text-sm text-slate-400">
-              Every number links directly to an indexed 10-K or transcript
-              paragraph—zero fabricated figures.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Tutorials Strip */}
-      <section
-        id="tutorials"
-        className="border-y border-white/[0.08] bg-[#07090E]/60 py-14"
-      >
-        <div className="mx-auto flex max-w-7xl flex-col items-start justify-between gap-6 px-6 md:flex-row md:items-center">
           <div>
-            <div className="text-xs font-medium uppercase tracking-wider text-[#3B82F6]">
-              Walkthroughs &amp; Workflows
-            </div>
-            <h3 className="mt-1 text-xl font-semibold text-white">
-              Master the command bar in 90 seconds
+            <h3 className="text-xl font-semibold text-white">
+              1. Deterministic Fair Value in Seconds
             </h3>
-            <p className="mt-1 text-sm text-slate-400">
-              Jump across quotes, financials, seasonality, and options using
-              mnemonics like{" "}
-              <code className="rounded bg-white/[0.06] px-1.5 py-0.5 font-mono text-xs text-slate-200">
-                NVDA FA
-              </code>
-              ,{" "}
-              <code className="rounded bg-white/[0.06] px-1.5 py-0.5 font-mono text-xs text-slate-200">
-                TSLA OMON
-              </code>
-              , or{" "}
-              <code className="rounded bg-white/[0.06] px-1.5 py-0.5 font-mono text-xs text-slate-200">
-                AAPL VAL
-              </code>
-              .
+            <p className="mt-3 text-sm leading-relaxed text-slate-400">
+              Blend DCF, Economic Value Added, and Peter Lynch models against
+              live SEC XBRL statements with automatic Q4 derivation. Toggle any
+              model inside the workspace to stress-test intrinsic value without
+              spreadsheet friction.
             </p>
           </div>
-          <Link
-            href="/terminal/AAPL"
-            className="inline-flex items-center gap-2 rounded-lg border border-white/[0.12] bg-[#12161F] px-4 py-2.5 text-sm font-medium text-white transition hover:border-white/25"
-          >
-            <Play className="h-4 w-4 text-[#10B981]" />
-            Open Live Workspace
-          </Link>
         </div>
-      </section>
 
-      {/* Pricing Section */}
-      <section id="pricing" className="mx-auto max-w-7xl px-6 py-20">
-        <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
+        {/* Row 2: 30-Year Seasonality (Text Left, Visual Right) */}
+        <div className="grid items-center gap-12 md:grid-cols-2">
+          <div className="order-2 md:order-1">
+            <h3 className="text-xl font-semibold text-white">
+              2. 30-Year Detrended Seasonality &amp; Flows
+            </h3>
+            <p className="mt-3 text-sm leading-relaxed text-slate-400">
+              Inspect 10, 20, and 30-year annualized seasonal curves with linear
+              drift removed across any custom calendar window. Pair seasonal win
+              rates directly with SEC Form 4 insider buys, Congressional
+              disclosures, and CFTC COT extremes.
+            </p>
+          </div>
+
+          <div className="order-1 rounded-xl border border-white/[0.06] bg-[#11151E] p-6 md:order-2">
+            <div className="flex items-baseline justify-between border-b border-white/[0.06] pb-4">
+              <div>
+                <div className="text-xs text-slate-400">
+                  NVDA · Nov 26 – Dec 26 Window
+                </div>
+                <div className="mt-1 font-mono text-2xl font-semibold tabular-nums text-white">
+                  80.0% Win Rate
+                </div>
+              </div>
+              <span className="font-mono text-sm font-medium tabular-nums text-[#10B981]">
+                +9.44% Avg
+              </span>
+            </div>
+            <svg viewBox="0 0 320 90" className="mt-5 h-20 w-full" aria-hidden="true">
+              <line
+                x1="0"
+                y1="72"
+                x2="320"
+                y2="72"
+                stroke="rgba(255,255,255,0.08)"
+                strokeDasharray="4 4"
+              />
+              <path
+                d="M 0 72 C 50 64, 95 52, 150 44 C 205 34, 260 20, 320 12"
+                fill="none"
+                stroke="#10B981"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+              />
+              <path
+                d="M 0 72 C 55 68, 100 58, 155 52 C 210 44, 265 32, 320 26"
+                fill="none"
+                stroke="#94A3B8"
+                strokeWidth="1.5"
+                strokeDasharray="4 4"
+                strokeLinecap="round"
+              />
+            </svg>
+          </div>
+        </div>
+
+        {/* Row 3: Citation-Locked AI Analyst (Visual Left, Text Right) */}
+        <div className="grid items-center gap-12 md:grid-cols-2">
+          <div className="rounded-xl border border-white/[0.06] bg-[#11151E] p-6">
+            <div className="border-b border-white/[0.06] pb-3 text-xs text-slate-400">
+              AI Analyst · AAPL Filing Audit
+            </div>
+            <p className="mt-4 text-sm leading-relaxed text-slate-200">
+              Capital expenditures rose 18% sequentially to $3.1 billion in Q4 to
+              expand Private Cloud Compute silicon capacity, while full-year
+              Free Cash Flow reached $113.8 billion.{" "}
+              <span className="inline-block rounded bg-white/[0.08] px-1.5 py-0.5 font-mono text-xs text-white">
+                [Transcript Q4 &apos;26, ¶19]
+              </span>
+            </p>
+            <div className="mt-4 border-t border-white/[0.06] pt-3 font-mono text-xs text-slate-400">
+              Unindexed figures strictly return: &quot;Not disclosed in indexed filings.&quot;
+            </div>
+          </div>
+
           <div>
-            <h2 className="text-2xl font-semibold tracking-tight text-white">
-              Transparent pricing. 7-day free trial.
-            </h2>
-            <p className="mt-1.5 text-sm text-slate-400">
-              No credit card required to explore local SQLite caching, live
-              market pills, and deterministic quant models.
+            <h3 className="text-xl font-semibold text-white">
+              3. Citation-Locked AI Analyst
+            </h3>
+            <p className="mt-3 text-sm leading-relaxed text-slate-400">
+              Run local RAG out of the box or connect Ollama, OpenAI, or Claude
+              with your own key. Every figure links directly to an indexed 10-K
+              or earnings transcript paragraph so nothing is ever fabricated.
             </p>
-          </div>
-          <div className="inline-flex rounded-lg border border-white/[0.08] bg-[#12161F] p-1 text-xs">
-            <button
-              type="button"
-              onClick={() => setBillingCycle("monthly")}
-              className={`rounded-md px-3 py-1.5 transition ${
-                billingCycle === "monthly"
-                  ? "bg-white/[0.1] text-white"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              Monthly
-            </button>
-            <button
-              type="button"
-              onClick={() => setBillingCycle("annual")}
-              className={`rounded-md px-3 py-1.5 transition ${
-                billingCycle === "annual"
-                  ? "bg-[#3B82F6] text-white"
-                  : "text-slate-400 hover:text-white"
-              }`}
-            >
-              Annual · Save 25%
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-10 grid gap-6 md:grid-cols-2">
-          {/* Monthly / Core Plan */}
-          <div className="rounded-xl border border-white/[0.08] bg-[#12161F] p-6">
-            <div className="text-sm font-medium text-slate-300">
-              Research Core
-            </div>
-            <div className="mt-4 flex items-baseline gap-2">
-              <span className="font-mono text-3xl font-semibold tabular-nums text-white">
-                {billingCycle === "annual" ? "$29" : "$39"}
-              </span>
-              <span className="text-sm text-slate-400">/ month</span>
-            </div>
-            <p className="mt-2 text-sm text-slate-400">
-              Full local-first terminal, SEC XBRL normalization, and 30-year
-              seasonality engine.
-            </p>
-            <ul className="mt-6 space-y-3 text-sm text-slate-300">
-              <li className="flex items-center gap-2.5">
-                <Check className="h-4 w-4 text-[#10B981]" />
-                Real-time Binance ticks, FRED macro, Yahoo options chains
-              </li>
-              <li className="flex items-center gap-2.5">
-                <Check className="h-4 w-4 text-[#10B981]" />
-                Composite DCF, EVA, Peter Lynch, Piotroski &amp; Altman scores
-              </li>
-              <li className="flex items-center gap-2.5">
-                <Check className="h-4 w-4 text-[#10B981]" />
-                Multi-asset Screener &amp; SQLite sub-100ms local cache
-              </li>
-            </ul>
-            <button
-              type="button"
-              onClick={() => openModal("trial")}
-              className="mt-8 w-full rounded-lg border border-white/[0.12] bg-white/[0.04] py-2.5 text-sm font-medium text-white transition hover:bg-white/[0.08]"
-            >
-              Start 7-Day Free Trial
-            </button>
-          </div>
-
-          {/* Institutional Pro Plan */}
-          <div className="rounded-xl border border-[#3B82F6]/40 bg-[#12161F] p-6">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-white">
-                Institutional Quant Pro
-              </span>
-              <span className="rounded-full bg-[#3B82F6]/15 px-2.5 py-0.5 text-xs font-medium text-[#60A5FA]">
-                Most Popular
-              </span>
-            </div>
-            <div className="mt-4 flex items-baseline gap-2">
-              <span className="font-mono text-3xl font-semibold tabular-nums text-white">
-                {billingCycle === "annual" ? "$59" : "$79"}
-              </span>
-              <span className="text-sm text-slate-400">/ month</span>
-            </div>
-            <p className="mt-2 text-sm text-slate-400">
-              Adds smart-money COT &amp; Form 4 alerts, 1x2 split-screen
-              workspace, and BYOK/Ollama AI Analyst.
-            </p>
-            <ul className="mt-6 space-y-3 text-sm text-slate-300">
-              <li className="flex items-center gap-2.5">
-                <Check className="h-4 w-4 text-[#10B981]" />
-                Everything in Research Core + 1x2 linked split workspace
-              </li>
-              <li className="flex items-center gap-2.5">
-                <Check className="h-4 w-4 text-[#10B981]" />
-                CFTC COT extreme alerts, Form 4 &amp; US Congress feeds
-              </li>
-              <li className="flex items-center gap-2.5">
-                <Check className="h-4 w-4 text-[#10B981]" />
-                Citation-locked AI Analyst (Local RAG, Ollama, OpenAI, Claude)
-              </li>
-            </ul>
-            <button
-              type="button"
-              onClick={() => openModal("trial")}
-              className="mt-8 w-full rounded-lg bg-[#3B82F6] py-2.5 text-sm font-medium text-white transition hover:bg-[#2563EB]"
-            >
-              Start 7-Day Free Trial
-            </button>
           </div>
         </div>
       </section>
 
-      <footer className="border-t border-white/[0.08] py-8 text-center text-xs text-slate-500">
-        OpenForecaster · Local-First Institutional Financial Research Terminal ·
-        Data powered by SEC EDGAR, FRED, Yahoo Finance &amp; Binance
-      </footer>
-
-      {/* Minimal bottom-right support trigger */}
-      <button
-        type="button"
-        onClick={() => openModal("support")}
-        aria-label="Open support"
-        className="fixed bottom-5 right-5 z-30 inline-flex items-center gap-1.5 rounded-full border border-white/[0.1] bg-[#12161F] px-3.5 py-2 text-xs text-slate-300 shadow-lg transition hover:border-white/25 hover:text-white"
+      {/* Pricing Comparison (Simple 2-Card Layout) */}
+      <section
+        id="pricing"
+        className="border-t border-white/[0.06] bg-[#0B0E14] py-24"
       >
-        <HelpCircle className="h-3.5 w-3.5 text-[#3B82F6]" />
-        Support
-      </button>
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-end">
+            <div>
+              <h2 className="text-2xl font-semibold tracking-tight text-white">
+                Simple pricing. 7-Day Free Trial.
+              </h2>
+              <p className="mt-2 text-sm text-slate-400">
+                Explore the full terminal locally with zero credit card required.
+              </p>
+            </div>
+            <div className="inline-flex rounded-lg border border-white/[0.08] bg-[#11151E] p-1 text-xs">
+              <button
+                type="button"
+                onClick={() => setBillingCycle("monthly")}
+                className={`rounded-md px-3 py-1.5 transition ${
+                  billingCycle === "monthly"
+                    ? "bg-white/[0.1] text-white"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                Monthly
+              </button>
+              <button
+                type="button"
+                onClick={() => setBillingCycle("annual")}
+                className={`rounded-md px-3 py-1.5 transition ${
+                  billingCycle === "annual"
+                    ? "bg-white/[0.1] text-white"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                Annual · Save 25%
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-10 grid gap-6 md:grid-cols-2">
+            <div className="rounded-xl border border-white/[0.06] bg-[#11151E] p-6">
+              <div className="text-sm font-medium text-slate-300">
+                Research Core
+              </div>
+              <div className="mt-4 flex items-baseline gap-2">
+                <span className="font-mono text-3xl font-semibold tabular-nums text-white">
+                  {billingCycle === "annual" ? "$29" : "$39"}
+                </span>
+                <span className="text-sm text-slate-400">/ month</span>
+              </div>
+              <ul className="mt-6 space-y-3 text-sm text-slate-300">
+                <li className="flex items-center gap-2.5">
+                  <Check className="h-4 w-4 text-[#10B981]" />
+                  Live SEC EDGAR, FRED macro &amp; Yahoo Finance chains
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <Check className="h-4 w-4 text-[#10B981]" />
+                  DCF, EVA, Lynch, Piotroski &amp; 30Y Seasonality
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <Check className="h-4 w-4 text-[#10B981]" />
+                  Local SQLite sub-100ms cache
+                </li>
+              </ul>
+              <Link
+                href="/terminal"
+                className="mt-8 block w-full rounded-lg border border-white/[0.1] py-2.5 text-center text-sm font-medium text-white transition hover:bg-white/[0.04]"
+              >
+                Start 7-Day Free Trial
+              </Link>
+            </div>
+
+            <div className="rounded-xl border border-white/[0.12] bg-[#11151E] p-6">
+              <div className="text-sm font-medium text-white">
+                Institutional Quant Pro
+              </div>
+              <div className="mt-4 flex items-baseline gap-2">
+                <span className="font-mono text-3xl font-semibold tabular-nums text-white">
+                  {billingCycle === "annual" ? "$59" : "$79"}
+                </span>
+                <span className="text-sm text-slate-400">/ month</span>
+              </div>
+              <ul className="mt-6 space-y-3 text-sm text-slate-300">
+                <li className="flex items-center gap-2.5">
+                  <Check className="h-4 w-4 text-[#10B981]" />
+                  Everything in Research Core + Smart Money flows
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <Check className="h-4 w-4 text-[#10B981]" />
+                  CFTC COT positioning, Form 4 &amp; Congress trades
+                </li>
+                <li className="flex items-center gap-2.5">
+                  <Check className="h-4 w-4 text-[#10B981]" />
+                  Citation-locked AI Analyst (Local RAG, Ollama, BYOK)
+                </li>
+              </ul>
+              <Link
+                href="/terminal"
+                className="mt-8 block w-full rounded-lg bg-[#3B82F6] py-2.5 text-center text-sm font-medium text-white transition hover:bg-[#2563EB]"
+              >
+                Start 7-Day Free Trial
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer className="border-t border-white/[0.06] py-8 text-center text-xs text-slate-500">
+        OpenForecaster · Local-First Institutional Financial Research
+      </footer>
 
       {/* Modals (Closed by default) */}
       {activeModal && (
@@ -666,49 +510,24 @@ export function LandingClient() {
           role="dialog"
           aria-modal="true"
         >
-          <div className="w-full max-w-md rounded-xl border border-white/[0.1] bg-[#12161F] p-6 shadow-2xl">
+          <div className="w-full max-w-md rounded-xl border border-white/[0.08] bg-[#11151E] p-6 shadow-2xl">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold text-white">
                 {activeModal === "webinar" && "Reserve Spot — Dec 2, 2026 Webinar"}
                 {activeModal === "keynote" && "Register — Forecaster Keynote"}
-                {activeModal === "trial" && "Start Your 7-Day Free Trial"}
                 {activeModal === "signin" && "Sign In to OpenForecaster"}
-                {activeModal === "support" && "OpenForecaster Support"}
               </h3>
               <button
                 type="button"
                 aria-label="Close modal"
                 onClick={() => setActiveModal(null)}
-                className="rounded p-1 text-slate-400 hover:bg-white/[0.06] hover:text-white"
+                className="rounded p-1 text-slate-400 hover:text-white"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
-            {activeModal === "support" ? (
-              <div className="mt-4 space-y-3 text-sm text-slate-300">
-                <p>
-                  OpenForecaster runs locally with SQLite caching at{" "}
-                  <code className="rounded bg-white/[0.06] px-1.5 py-0.5 font-mono text-xs">
-                    ./data/cache.db
-                  </code>
-                  .
-                </p>
-                <p className="text-slate-400">
-                  Press <kbd className="rounded bg-white/[0.08] px-1.5 py-0.5 font-mono text-xs">/</kbd> or{" "}
-                  <kbd className="rounded bg-white/[0.08] px-1.5 py-0.5 font-mono text-xs">Cmd+K</kbd> inside the
-                  terminal for fuzzy ticker &amp; function navigation, or{" "}
-                  <kbd className="rounded bg-white/[0.08] px-1.5 py-0.5 font-mono text-xs">Cmd+J</kbd> for the
-                  citation-locked AI Analyst.
-                </p>
-                <Link
-                  href="/terminal/AAPL"
-                  className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-[#3B82F6] hover:underline"
-                >
-                  Open Terminal <TrendingUp className="h-4 w-4" />
-                </Link>
-              </div>
-            ) : submittedMsg ? (
+            {submittedMsg ? (
               <div className="mt-4 space-y-4">
                 <div className="rounded-lg bg-[#10B981]/10 p-3.5 text-sm text-[#10B981]">
                   {submittedMsg}
@@ -725,9 +544,9 @@ export function LandingClient() {
                 )}
                 <Link
                   href="/terminal/AAPL"
-                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/[0.12] py-2.5 text-sm font-medium text-slate-200 transition hover:bg-white/[0.04]"
+                  className="flex w-full items-center justify-center gap-2 rounded-lg border border-white/[0.1] py-2.5 text-sm font-medium text-slate-200 transition hover:bg-white/[0.04]"
                 >
-                  Continue to Terminal
+                  Open Terminal
                   <ArrowRight className="h-4 w-4" />
                 </Link>
               </div>
@@ -737,14 +556,12 @@ export function LandingClient() {
                   {activeModal === "keynote" &&
                     "Wednesday, December 16, 2026 · 11:00 CET (UTC+1). Instant .ics calendar invite included."}
                   {activeModal === "webinar" &&
-                    "Free Weekly Market Webinar — Dec 2, 2026. Seasonality & Smart Money setup review."}
-                  {activeModal === "trial" &&
-                    "No credit card required. Launches straight into your local-first terminal."}
+                    "Free Weekly Market Webinar — Dec 2, 2026."}
                   {activeModal === "signin" &&
-                    "Enter your email to restore your local watchlist and trial session."}
+                    "Enter your email to restore your local terminal session."}
                 </p>
 
-                {(activeModal === "keynote" || activeModal === "webinar") && (
+                {activeModal !== "signin" && (
                   <div>
                     <label className="mb-1 block text-xs text-slate-300">
                       Full Name
@@ -754,14 +571,14 @@ export function LandingClient() {
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="Alex Mercer"
-                      className="w-full rounded-lg border border-white/[0.1] bg-[#0B0E14] px-3 py-2 text-sm text-white outline-none focus:border-[#3B82F6]"
+                      className="w-full rounded-lg border border-white/[0.08] bg-[#0B0E14] px-3 py-2 text-sm text-white outline-none focus:border-white/30"
                     />
                   </div>
                 )}
 
                 <div>
                   <label className="mb-1 block text-xs text-slate-300">
-                    Work or Personal Email
+                    Email Address
                   </label>
                   <input
                     type="email"
@@ -769,7 +586,7 @@ export function LandingClient() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="analyst@firm.com"
-                    className="w-full rounded-lg border border-white/[0.1] bg-[#0B0E14] px-3 py-2 text-sm text-white outline-none focus:border-[#3B82F6]"
+                    className="w-full rounded-lg border border-white/[0.08] bg-[#0B0E14] px-3 py-2 text-sm text-white outline-none focus:border-white/30"
                   />
                 </div>
 
@@ -788,19 +605,8 @@ export function LandingClient() {
                       ? "Confirm Keynote Registration"
                       : activeModal === "webinar"
                         ? "Reserve Webinar Spot"
-                        : activeModal === "signin"
-                          ? "Continue to Terminal"
-                          : "Start 7-Day Free Trial"}
+                        : "Continue to Terminal"}
                 </button>
-
-                {(activeModal === "trial" || activeModal === "signin") && (
-                  <Link
-                    href="/terminal/AAPL"
-                    className="block text-center text-xs text-slate-400 transition hover:text-white"
-                  >
-                    Skip &amp; open /terminal/AAPL directly →
-                  </Link>
-                )}
               </form>
             )}
           </div>

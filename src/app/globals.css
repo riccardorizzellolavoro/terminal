@@ -2,13 +2,12 @@
 
 :root {
   --bg-canvas: #0b0e14;
-  --bg-surface: #12161f;
+  --bg-surface: #11151e;
   --bg-deep-space: #07090e;
-  --border-hairline: rgba(255, 255, 255, 0.08);
+  --border-hairline: rgba(255, 255, 255, 0.06);
   --accent-emerald: #10b981;
   --accent-rose: #f43f5e;
   --accent-blue: #3b82f6;
-  --accent-amber: #ff9900;
 }
 
 @theme inline {
@@ -35,7 +34,6 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* Calm hairline scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;

@@ -46,7 +46,6 @@ export function OptionsTab({ symbol }: OptionsTabProps) {
     ).sort((a, b) => a - b);
 
     const spot = chain.underlyingPrice;
-    // Default: show 10 strikes closest to spot (+/- 5 strikes)
     let visibleStrikes = allStrikes;
     if (!showFullChain && allStrikes.length > 10) {
       let closestIdx = 0;
@@ -72,7 +71,7 @@ export function OptionsTab({ symbol }: OptionsTabProps) {
 
   if (loading && !chain) {
     return (
-      <div className="rounded-xl border border-white/[0.08] bg-[#12161F] p-6 text-sm text-slate-400">
+      <div className="rounded-xl border border-white/[0.06] bg-[#11151E] p-6 text-sm text-slate-400">
         Loading options chain for {symbol}...
       </div>
     );
@@ -80,14 +79,14 @@ export function OptionsTab({ symbol }: OptionsTabProps) {
 
   if (!chain) {
     return (
-      <div className="rounded-xl border border-white/[0.08] bg-[#12161F] p-6 text-sm text-slate-400">
+      <div className="rounded-xl border border-white/[0.06] bg-[#11151E] p-6 text-sm text-slate-400">
         Options chain unavailable for {symbol}.
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-white/[0.08] bg-[#12161F] p-6">
+    <div className="rounded-xl border border-white/[0.06] bg-[#11151E] p-6">
       <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <label className="text-xs text-slate-400">Expiration</label>
@@ -95,7 +94,7 @@ export function OptionsTab({ symbol }: OptionsTabProps) {
             aria-label="Option expiration date"
             value={selectedExp}
             onChange={(e) => loadChain(e.target.value)}
-            className="rounded-lg border border-white/[0.1] bg-[#0B0E14] px-3 py-1.5 font-mono text-xs text-white outline-none focus:border-[#3B82F6]"
+            className="rounded-lg border border-white/[0.08] bg-[#0B0E14] px-3 py-1.5 font-mono text-xs text-white outline-none"
           >
             {chain.expirations.map((exp) => (
               <option key={exp} value={exp}>
@@ -105,129 +104,107 @@ export function OptionsTab({ symbol }: OptionsTabProps) {
           </select>
         </div>
 
-        <div className="flex items-center gap-4 text-xs text-slate-400">
-          <span>
-            Underlying:{" "}
-            <strong className="font-mono text-white">
-              {formatPrice(chain.underlyingPrice, symbol)}
-            </strong>
-          </span>
-          <span className="font-mono uppercase text-slate-500">
-            {chain.source}
+        <div className="text-xs text-slate-400">
+          Spot{" "}
+          <span className="font-mono font-medium text-white tabular-nums">
+            {formatPrice(chain.underlyingPrice, symbol)}
           </span>
         </div>
       </div>
 
+      {/* 5-Column Side-by-Side Calls / Puts Chain */}
       <div className="overflow-x-auto">
-        <table className="w-full border-collapse text-right font-mono text-xs tabular-nums">
+        <table className="w-full border-collapse text-right font-mono text-sm tabular-nums">
           <thead>
-            <tr className="border-b border-white/[0.08] text-[11px] uppercase tracking-wider text-slate-400">
-              <th colSpan={5} className="pb-2 text-center text-[#10B981]">
-                Calls
-              </th>
-              <th className="bg-white/[0.04] px-3 pb-2 text-center text-white">
+            <tr className="border-b border-white/[0.06] text-xs text-slate-400">
+              <th className="py-3 pr-3 font-medium">Call Bid / Ask · OI</th>
+              <th className="px-3 py-3 font-medium">Call Last · IV</th>
+              <th className="bg-white/[0.03] px-4 py-3 text-center font-medium text-white">
                 Strike
               </th>
-              <th colSpan={5} className="pb-2 text-center text-[#F43F5E]">
-                Puts
+              <th className="px-3 py-3 text-left font-medium">Put Last · IV</th>
+              <th className="py-3 pl-3 text-left font-medium">
+                Put Bid / Ask · OI
               </th>
-            </tr>
-            <tr className="border-b border-white/[0.08] text-[11px] text-slate-500">
-              <th className="py-2 pr-2">IV</th>
-              <th className="px-2 py-2">OI</th>
-              <th className="px-2 py-2">Vol</th>
-              <th className="px-2 py-2">Last</th>
-              <th className="px-2 py-2">Bid / Ask</th>
-              <th className="bg-white/[0.04] px-3 py-2 text-center text-slate-300">
-                $
-              </th>
-              <th className="px-2 py-2">Bid / Ask</th>
-              <th className="px-2 py-2">Last</th>
-              <th className="px-2 py-2">Vol</th>
-              <th className="px-2 py-2">OI</th>
-              <th className="py-2 pl-2">IV</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-white/[0.05]">
+          <tbody className="divide-y divide-white/[0.06]">
             {pairedRows.map(({ strike, call, put }) => (
-              <tr key={strike} className="hover:bg-white/[0.02]">
-                {/* Call side */}
+              <tr key={strike} className="h-12 hover:bg-white/[0.02]">
                 <td
-                  className={`py-2.5 pr-2 ${
-                    call?.inTheMoney ? "bg-[#10B981]/[0.06] text-slate-200" : "text-slate-400"
+                  className={`py-2 pr-3 text-xs ${
+                    call?.inTheMoney ? "bg-white/[0.03] text-slate-200" : "text-slate-400"
                   }`}
                 >
-                  {call ? `${call.impliedVolatility.toFixed(1)}%` : "—"}
-                </td>
-                <td
-                  className={`px-2 py-2.5 ${
-                    call?.inTheMoney ? "bg-[#10B981]/[0.06] text-slate-300" : "text-slate-400"
-                  }`}
-                >
-                  {call ? call.openInterest.toLocaleString() : "—"}
-                </td>
-                <td
-                  className={`px-2 py-2.5 ${
-                    call?.inTheMoney ? "bg-[#10B981]/[0.06] text-slate-300" : "text-slate-400"
-                  }`}
-                >
-                  {call ? call.volume.toLocaleString() : "—"}
-                </td>
-                <td
-                  className={`px-2 py-2.5 font-medium ${
-                    call?.inTheMoney ? "bg-[#10B981]/[0.06] text-white" : "text-slate-200"
-                  }`}
-                >
-                  {call ? call.lastPrice.toFixed(2) : "—"}
-                </td>
-                <td
-                  className={`px-2 py-2.5 ${
-                    call?.inTheMoney ? "bg-[#10B981]/[0.06] text-slate-300" : "text-slate-400"
-                  }`}
-                >
-                  {call ? `${call.bid.toFixed(2)} / ${call.ask.toFixed(2)}` : "—"}
+                  {call ? (
+                    <div>
+                      <div>
+                        {call.bid.toFixed(2)} / {call.ask.toFixed(2)}
+                      </div>
+                      <div className="text-[11px] text-slate-500">
+                        OI {call.openInterest.toLocaleString()}
+                      </div>
+                    </div>
+                  ) : (
+                    "—"
+                  )}
                 </td>
 
-                {/* Strike */}
-                <td className="bg-white/[0.04] px-3 py-2.5 text-center font-semibold text-white">
+                <td
+                  className={`px-3 py-2 ${
+                    call?.inTheMoney ? "bg-white/[0.03] text-white" : "text-slate-200"
+                  }`}
+                >
+                  {call ? (
+                    <div>
+                      <div className="font-medium">{call.lastPrice.toFixed(2)}</div>
+                      <div className="text-[11px] text-slate-400">
+                        {call.impliedVolatility.toFixed(1)}%
+                      </div>
+                    </div>
+                  ) : (
+                    "—"
+                  )}
+                </td>
+
+                <td className="bg-white/[0.04] px-4 py-2 text-center font-semibold text-white">
                   {strike.toFixed(symbol === "EURUSD" ? 4 : 2)}
                 </td>
 
-                {/* Put side */}
                 <td
-                  className={`px-2 py-2.5 ${
-                    put?.inTheMoney ? "bg-[#F43F5E]/[0.06] text-slate-300" : "text-slate-400"
+                  className={`px-3 py-2 text-left ${
+                    put?.inTheMoney ? "bg-white/[0.03] text-white" : "text-slate-200"
                   }`}
                 >
-                  {put ? `${put.bid.toFixed(2)} / ${put.ask.toFixed(2)}` : "—"}
+                  {put ? (
+                    <div>
+                      <div className="font-medium">{put.lastPrice.toFixed(2)}</div>
+                      <div className="text-[11px] text-slate-400">
+                        {put.impliedVolatility.toFixed(1)}%
+                      </div>
+                    </div>
+                  ) : (
+                    "—"
+                  )}
                 </td>
+
                 <td
-                  className={`px-2 py-2.5 font-medium ${
-                    put?.inTheMoney ? "bg-[#F43F5E]/[0.06] text-white" : "text-slate-200"
+                  className={`py-2 pl-3 text-left text-xs ${
+                    put?.inTheMoney ? "bg-white/[0.03] text-slate-200" : "text-slate-400"
                   }`}
                 >
-                  {put ? put.lastPrice.toFixed(2) : "—"}
-                </td>
-                <td
-                  className={`px-2 py-2.5 ${
-                    put?.inTheMoney ? "bg-[#F43F5E]/[0.06] text-slate-300" : "text-slate-400"
-                  }`}
-                >
-                  {put ? put.volume.toLocaleString() : "—"}
-                </td>
-                <td
-                  className={`px-2 py-2.5 ${
-                    put?.inTheMoney ? "bg-[#F43F5E]/[0.06] text-slate-300" : "text-slate-400"
-                  }`}
-                >
-                  {put ? put.openInterest.toLocaleString() : "—"}
-                </td>
-                <td
-                  className={`py-2.5 pl-2 ${
-                    put?.inTheMoney ? "bg-[#F43F5E]/[0.06] text-slate-200" : "text-slate-400"
-                  }`}
-                >
-                  {put ? `${put.impliedVolatility.toFixed(1)}%` : "—"}
+                  {put ? (
+                    <div>
+                      <div>
+                        {put.bid.toFixed(2)} / {put.ask.toFixed(2)}
+                      </div>
+                      <div className="text-[11px] text-slate-500">
+                        OI {put.openInterest.toLocaleString()}
+                      </div>
+                    </div>
+                  ) : (
+                    "—"
+                  )}
                 </td>
               </tr>
             ))}
@@ -235,16 +212,15 @@ export function OptionsTab({ symbol }: OptionsTabProps) {
         </table>
       </div>
 
-      {/* Show full chain toggle at bottom */}
-      <div className="mt-4 flex items-center justify-between border-t border-white/[0.06] pt-3 text-xs text-slate-400">
+      <div className="mt-4 flex items-center justify-between border-t border-white/[0.06] pt-4 text-xs text-slate-400">
         <span>
           Showing {pairedRows.length} strikes{" "}
-          {!showFullChain ? "(±5 strikes around spot)" : "(full chain)"}
+          {!showFullChain ? "(±5 around spot)" : "(full chain)"}
         </span>
         <button
           type="button"
           onClick={() => setShowFullChain((v) => !v)}
-          className="rounded-md border border-white/[0.1] bg-[#0B0E14] px-3 py-1.5 font-medium text-slate-200 transition hover:border-white/25 hover:text-white"
+          className="rounded-md border border-white/[0.08] px-3 py-1.5 text-slate-200 transition hover:bg-white/[0.04] hover:text-white"
         >
           {showFullChain ? "Filter to ±5 strikes" : "Show full chain"}
         </button>

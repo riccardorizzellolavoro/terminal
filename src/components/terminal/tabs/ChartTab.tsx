@@ -17,7 +17,7 @@ interface ChartTabProps {
   initialBars: OhlcvBar[];
 }
 
-type Timeframe = "1D" | "5D" | "1M" | "6M" | "1Y" | "5Y";
+type Timeframe = "1M" | "6M" | "1Y" | "5Y";
 
 function computeSma(bars: OhlcvBar[], period: number) {
   const out: { time: string; value: number }[] = [];
@@ -96,7 +96,7 @@ export function ChartTab({ symbol, initialBars }: ChartTabProps) {
   const [bars, setBars] = useState<OhlcvBar[]>(initialBars);
   const [loading, setLoading] = useState(false);
 
-  // Popover kept closed and indicators kept OFF by default
+  // Zero indicators enabled by default
   const [indMenuOpen, setIndMenuOpen] = useState(false);
   const [sma20, setSma20] = useState(false);
   const [sma50, setSma50] = useState(false);
@@ -117,9 +117,7 @@ export function ChartTab({ symbol, initialBars }: ChartTabProps) {
     setLoading(true);
     try {
       const fetchRange =
-        sma200 && (tf === "1D" || tf === "5D" || tf === "1M" || tf === "6M")
-          ? "1Y"
-          : tf;
+        sma200 && (tf === "1M" || tf === "6M") ? "1Y" : tf;
       const res = await fetch(
         `/api/ticker/${encodeURIComponent(symbol)}?section=chart&range=${fetchRange}`
       );
@@ -141,27 +139,27 @@ export function ChartTab({ symbol, initialBars }: ChartTabProps) {
 
     const chart: IChartApi = createChart(el, {
       layout: {
-        background: { type: ColorType.Solid, color: "#12161F" },
+        background: { type: ColorType.Solid, color: "#11151E" },
         textColor: "#94A3B8",
         fontFamily: "JetBrains Mono, monospace",
       },
       grid: {
-        vertLines: { color: "rgba(255,255,255,0.04)" },
-        horzLines: { color: "rgba(255,255,255,0.04)" },
+        vertLines: { color: "rgba(255,255,255,0.03)" },
+        horzLines: { color: "rgba(255,255,255,0.03)" },
       },
       rightPriceScale: {
-        borderColor: "rgba(255,255,255,0.08)",
+        borderColor: "rgba(255,255,255,0.06)",
       },
       timeScale: {
-        borderColor: "rgba(255,255,255,0.08)",
+        borderColor: "rgba(255,255,255,0.06)",
         timeVisible: true,
       },
       crosshair: {
-        vertLine: { color: "rgba(255,255,255,0.22)" },
-        horzLine: { color: "rgba(255,255,255,0.22)" },
+        vertLine: { color: "rgba(255,255,255,0.2)" },
+        horzLine: { color: "rgba(255,255,255,0.2)" },
       },
       width: el.clientWidth,
-      height: 440,
+      height: 460,
     });
 
     const candleSeries = chart.addSeries(CandlestickSeries, {
@@ -187,7 +185,7 @@ export function ChartTab({ symbol, initialBars }: ChartTabProps) {
       priceScaleId: "",
     });
     volumeSeries.priceScale().applyOptions({
-      scaleMargins: { top: 0.8, bottom: 0 },
+      scaleMargins: { top: 0.82, bottom: 0 },
     });
     volumeSeries.setData(
       bars.map((b) => ({
@@ -195,14 +193,14 @@ export function ChartTab({ symbol, initialBars }: ChartTabProps) {
         value: b.volume,
         color:
           b.close >= b.open
-            ? "rgba(16, 185, 129, 0.25)"
-            : "rgba(244, 63, 94, 0.25)",
+            ? "rgba(16, 185, 129, 0.22)"
+            : "rgba(244, 63, 94, 0.22)",
       }))
     );
 
     if (sma20) {
       const s20 = chart.addSeries(LineSeries, {
-        color: "#3B82F6",
+        color: "#E2E8F0",
         lineWidth: 1,
         title: "SMA 20",
       });
@@ -210,7 +208,7 @@ export function ChartTab({ symbol, initialBars }: ChartTabProps) {
     }
     if (sma50) {
       const s50 = chart.addSeries(LineSeries, {
-        color: "#FF9900",
+        color: "#94A3B8",
         lineWidth: 1,
         title: "SMA 50",
       });
@@ -218,7 +216,7 @@ export function ChartTab({ symbol, initialBars }: ChartTabProps) {
     }
     if (sma200) {
       const s200 = chart.addSeries(LineSeries, {
-        color: "#A855F7",
+        color: "#64748B",
         lineWidth: 1,
         title: "SMA 200",
       });
@@ -240,30 +238,29 @@ export function ChartTab({ symbol, initialBars }: ChartTabProps) {
     };
   }, [bars, sma20, sma50, sma200]);
 
-  // Optional Oscillator Sub-pane when RSI or MACD enabled
   useEffect(() => {
     const el = oscContainerRef.current;
     if (!el || (!showRsi && !showMacd) || bars.length === 0) return;
 
     const oscChart = createChart(el, {
       layout: {
-        background: { type: ColorType.Solid, color: "#12161F" },
+        background: { type: ColorType.Solid, color: "#11151E" },
         textColor: "#94A3B8",
         fontFamily: "JetBrains Mono, monospace",
       },
       grid: {
-        vertLines: { color: "rgba(255,255,255,0.04)" },
-        horzLines: { color: "rgba(255,255,255,0.04)" },
+        vertLines: { color: "rgba(255,255,255,0.03)" },
+        horzLines: { color: "rgba(255,255,255,0.03)" },
       },
-      rightPriceScale: { borderColor: "rgba(255,255,255,0.08)" },
-      timeScale: { borderColor: "rgba(255,255,255,0.08)" },
+      rightPriceScale: { borderColor: "rgba(255,255,255,0.06)" },
+      timeScale: { borderColor: "rgba(255,255,255,0.06)" },
       width: el.clientWidth,
-      height: 150,
+      height: 140,
     });
 
     if (showRsi && rsiData.length) {
       const rsiSeries = oscChart.addSeries(LineSeries, {
-        color: "#3B82F6",
+        color: "#E2E8F0",
         lineWidth: 2,
         title: "RSI(14)",
       });
@@ -277,11 +274,11 @@ export function ChartTab({ symbol, initialBars }: ChartTabProps) {
           time: d.time,
           value: d.hist,
           color:
-            d.hist >= 0 ? "rgba(16,185,129,0.5)" : "rgba(244,63,94,0.5)",
+            d.hist >= 0 ? "rgba(16,185,129,0.45)" : "rgba(244,63,94,0.45)",
         }))
       );
       const macdLine = oscChart.addSeries(LineSeries, {
-        color: "#FF9900",
+        color: "#94A3B8",
         lineWidth: 1,
         title: "MACD",
       });
@@ -303,87 +300,91 @@ export function ChartTab({ symbol, initialBars }: ChartTabProps) {
   const activeIndCount = [sma20, sma50, sma200, showRsi, showMacd].filter(Boolean).length;
 
   return (
-    <div className="rounded-xl border border-white/[0.08] bg-[#12161F] p-6">
+    <div className="relative rounded-xl border border-white/[0.06] bg-[#11151E] p-6">
+      {/* Top-right Chart Controls inside the container */}
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-1.5">
-          {(["1D", "5D", "1M", "6M", "1Y", "5Y"] as const).map((tf) => (
-            <button
-              key={tf}
-              type="button"
-              onClick={() => handleTimeframeChange(tf)}
-              className={`rounded-md px-3 py-1.5 font-mono text-xs transition ${
-                timeframe === tf
-                  ? "bg-[#3B82F6] text-white"
-                  : "bg-white/[0.04] text-slate-400 hover:text-white"
-              }`}
-            >
-              {tf}
-            </button>
-          ))}
-          {loading && (
-            <span className="ml-2 text-xs text-slate-400">Updating...</span>
-          )}
+        <div className="text-xs text-slate-400">
+          Price &amp; Volume{" "}
+          {loading && <span className="ml-2 text-slate-500">Updating...</span>}
         </div>
 
-        {/* Single compact Indicators popover */}
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setIndMenuOpen((v) => !v)}
-            className="inline-flex items-center gap-2 rounded-lg border border-white/[0.1] bg-[#0B0E14] px-3 py-1.5 text-xs font-medium text-slate-200 transition hover:border-white/25"
-          >
-            <SlidersHorizontal className="h-3.5 w-3.5 text-slate-400" />
-            Indicators
-            {activeIndCount > 0 && (
-              <span className="rounded bg-[#3B82F6]/20 px-1.5 py-0.5 font-mono text-[10px] text-[#60A5FA]">
-                {activeIndCount}
-              </span>
-            )}
-          </button>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
+            {(["1M", "6M", "1Y", "5Y"] as const).map((tf) => (
+              <button
+                key={tf}
+                type="button"
+                onClick={() => handleTimeframeChange(tf)}
+                className={`rounded-md px-2.5 py-1 font-mono text-xs transition ${
+                  timeframe === tf
+                    ? "bg-white/[0.12] text-white"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                {tf}
+              </button>
+            ))}
+          </div>
 
-          {indMenuOpen && (
-            <div className="absolute right-0 z-20 mt-2 w-56 rounded-xl border border-white/[0.1] bg-[#0B0E14] p-3 shadow-2xl">
-              <div className="mb-2 text-[11px] font-medium uppercase tracking-wider text-slate-400">
-                Technical Overlays
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIndMenuOpen((v) => !v)}
+              className="inline-flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-[#0B0E14] px-2.5 py-1 text-xs text-slate-300 transition hover:text-white"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5 text-slate-400" />
+              Indicators
+              {activeIndCount > 0 && (
+                <span className="font-mono text-[11px] text-white">
+                  ({activeIndCount})
+                </span>
+              )}
+            </button>
+
+            {indMenuOpen && (
+              <div className="absolute right-0 z-20 mt-2 w-52 rounded-xl border border-white/[0.08] bg-[#0B0E14] p-3 shadow-2xl">
+                <div className="mb-2 text-[11px] uppercase tracking-wider text-slate-500">
+                  Overlays
+                </div>
+                <div className="space-y-2 text-xs text-slate-300">
+                  {[
+                    { label: "SMA 20", val: sma20, set: setSma20 },
+                    { label: "SMA 50", val: sma50, set: setSma50 },
+                    { label: "SMA 200", val: sma200, set: setSma200 },
+                    { label: "RSI (14)", val: showRsi, set: setShowRsi },
+                    { label: "MACD (12, 26, 9)", val: showMacd, set: setShowMacd },
+                  ].map((item) => (
+                    <label
+                      key={item.label}
+                      className="flex cursor-pointer items-center justify-between rounded px-1.5 py-1 hover:bg-white/[0.04]"
+                    >
+                      <span>{item.label}</span>
+                      <input
+                        type="checkbox"
+                        checked={item.val}
+                        onChange={(e) => item.set(e.target.checked)}
+                        className="h-3.5 w-3.5 accent-[#3B82F6]"
+                      />
+                    </label>
+                  ))}
+                </div>
               </div>
-              <div className="space-y-2 text-xs text-slate-200">
-                {[
-                  { label: "SMA 20 (Blue)", val: sma20, set: setSma20 },
-                  { label: "SMA 50 (Amber)", val: sma50, set: setSma50 },
-                  { label: "SMA 200 (Purple)", val: sma200, set: setSma200 },
-                  { label: "RSI (14)", val: showRsi, set: setShowRsi },
-                  { label: "MACD (12, 26, 9)", val: showMacd, set: setShowMacd },
-                ].map((item) => (
-                  <label
-                    key={item.label}
-                    className="flex cursor-pointer items-center justify-between rounded px-1.5 py-1 hover:bg-white/[0.04]"
-                  >
-                    <span>{item.label}</span>
-                    <input
-                      type="checkbox"
-                      checked={item.val}
-                      onChange={(e) => item.set(e.target.checked)}
-                      className="h-3.5 w-3.5 accent-[#3B82F6]"
-                    />
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
 
-      <div ref={mainContainerRef} className="h-[440px] w-full overflow-hidden rounded-lg" />
+      <div ref={mainContainerRef} className="h-[460px] w-full overflow-hidden" />
 
       {(showRsi || showMacd) && (
-        <div className="mt-4 border-t border-white/[0.08] pt-3">
+        <div className="mt-4 border-t border-white/[0.06] pt-3">
           <div className="mb-1.5 font-mono text-[11px] text-slate-400">
             {showRsi && "RSI(14) "}
             {showMacd && "MACD(12,26,9)"}
           </div>
           <div
             ref={oscContainerRef}
-            className="h-[150px] w-full overflow-hidden rounded-lg"
+            className="h-[140px] w-full overflow-hidden"
           />
         </div>
       )}

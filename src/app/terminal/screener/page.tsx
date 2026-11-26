@@ -1,4 +1,4 @@
-import { ScreenerView } from "@/components/terminal/ScreenerView";
+import { DiscoverView } from "@/components/terminal/DiscoverView";
 import { TerminalShell } from "@/components/terminal/TerminalShell";
 import { loadScreenerUniverse } from "@/lib/services/ticker-service";
 
@@ -10,8 +10,8 @@ export default async function ScreenerPage() {
   return (
     <TerminalShell
       primarySymbol="AAPL"
-      mode="screener"
-      screenerContent={<ScreenerView initialRows={rows} />}
+      mode="discover"
+      discoverContent={<DiscoverView initialRows={rows} />}
     />
   );
 }

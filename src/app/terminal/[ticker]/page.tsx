@@ -1,19 +1,16 @@
 import { TerminalShell } from "@/components/terminal/TerminalShell";
+import { FocusedTabId } from "@/components/terminal/TickerWorkspace";
 import { loadFullTickerWorkspace } from "@/lib/services/ticker-service";
-import { TerminalTabId } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-const VALID_TABS = new Set<TerminalTabId>([
-  "overview",
-  "chart",
-  "financials",
-  "valuation",
-  "seasonality",
-  "options",
-  "smart-money",
-  "macro",
-]);
+function resolveFocusedTab(raw?: string): FocusedTabId {
+  const key = raw?.toLowerCase() ?? "";
+  if (key === "valuation" || key === "financials") return "valuation";
+  if (key === "seasonality" || key === "smart-money") return "seasonality";
+  if (key === "options") return "options";
+  return "overview";
+}
 
 export default async function TickerTerminalPage({
   params,
@@ -25,10 +22,7 @@ export default async function TickerTerminalPage({
   const { ticker } = await params;
   const { tab } = await searchParams;
   const decoded = decodeURIComponent(ticker).toUpperCase();
-  const initialTab: TerminalTabId =
-    tab && VALID_TABS.has(tab as TerminalTabId)
-      ? (tab as TerminalTabId)
-      : "overview";
+  const initialTab = resolveFocusedTab(tab);
 
   const initialData = await loadFullTickerWorkspace(decoded, "1Y");
 
